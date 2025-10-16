@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:latest # Use the official PostgreSQL image
+    container_name: kooperasi_postgres_db # Optional: Name your container
+    # restart: always # Always restart the container if it stops
+    environment:
+      POSTGRES_USER: root # Define the database user
+      POSTGRES_PASSWORD: root # Define the user's password
+      POSTGRES_DB: koperasi # Define the database name
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" # Map host port 5432 to container port 5432
+volumes:
+  pgdata: # Persist data in a named volume
