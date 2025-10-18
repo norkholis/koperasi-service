@@ -22,7 +22,7 @@ func main() {
 	}
 
 	// Auto migrate
-	db.AutoMigrate(&model.User{}, &model.Role{}, &model.Simpanan{})
+	db.AutoMigrate(&model.User{}, &model.Role{}, &model.Simpanan{}, &model.Pinjaman{})
 
 	// Seed roles
 	seedRoles(db)
@@ -35,6 +35,11 @@ func main() {
 	// Additional services
 	userService := service.NewUserService(userRepo)
 	userHandler := handler.NewUserHandler(userService)
+
+	// Pinjaman dependencies
+	pinjamanRepo := repository.NewPinjamanRepository(db)
+	pinjamanSvc := service.NewPinjamanService(pinjamanRepo)
+	pinjamanHdl := handler.NewPinjamanHandler(pinjamanSvc)
 
 	r := gin.Default()
 	r.Use(middleware.LoggerMiddleware())
@@ -66,6 +71,13 @@ func main() {
 		protected.POST("/users", userHandler.Create)
 		protected.PUT("/users/:id", userHandler.Update)
 		protected.DELETE("/users/:id", userHandler.Delete)
+
+		// Pinjaman CRUD
+		protected.GET("/pinjaman", pinjamanHdl.List)
+		protected.GET("/pinjaman/:id", pinjamanHdl.Detail)
+		protected.POST("/pinjaman", pinjamanHdl.Create)
+		protected.PUT("/pinjaman/:id", pinjamanHdl.Update)
+		protected.DELETE("/pinjaman/:id", pinjamanHdl.Delete)
 	}
 
 	r.Run(":8080")
