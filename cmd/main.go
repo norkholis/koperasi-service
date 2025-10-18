@@ -22,7 +22,7 @@ func main() {
 	}
 
 	// Auto migrate
-	db.AutoMigrate(&model.User{}, &model.Role{}, &model.Simpanan{}, &model.Pinjaman{})
+	db.AutoMigrate(&model.User{}, &model.Role{}, &model.Simpanan{}, &model.Pinjaman{}, &model.Angsuran{})
 
 	// Seed roles
 	seedRoles(db)
@@ -40,6 +40,11 @@ func main() {
 	pinjamanRepo := repository.NewPinjamanRepository(db)
 	pinjamanSvc := service.NewPinjamanService(pinjamanRepo)
 	pinjamanHdl := handler.NewPinjamanHandler(pinjamanSvc)
+
+	// Angsuran dependencies
+	angsuranRepo := repository.NewAngsuranRepository(db)
+	angsuranSvc := service.NewAngsuranService(angsuranRepo, pinjamanRepo)
+	angsuranHdl := handler.NewAngsuranHandler(angsuranSvc)
 
 	r := gin.Default()
 	r.Use(middleware.LoggerMiddleware())
@@ -78,6 +83,15 @@ func main() {
 		protected.POST("/pinjaman", pinjamanHdl.Create)
 		protected.PUT("/pinjaman/:id", pinjamanHdl.Update)
 		protected.DELETE("/pinjaman/:id", pinjamanHdl.Delete)
+
+		// Angsuran CRUD
+		protected.GET("/angsuran", angsuranHdl.List)
+		protected.GET("/angsuran/:id", angsuranHdl.Detail)
+		protected.POST("/angsuran", angsuranHdl.Create)
+		protected.PUT("/angsuran/:id", angsuranHdl.Update)
+		protected.DELETE("/angsuran/:id", angsuranHdl.Delete)
+		protected.PUT("/angsuran/:id/verify", angsuranHdl.Verify)
+		protected.GET("/angsuran/pending", angsuranHdl.GetPendingPayments)
 	}
 
 	r.Run(":8080")
