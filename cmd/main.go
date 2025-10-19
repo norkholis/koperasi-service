@@ -22,7 +22,7 @@ func main() {
 	}
 
 	// Auto migrate
-	db.AutoMigrate(&model.User{}, &model.Role{}, &model.Simpanan{}, &model.Pinjaman{}, &model.Angsuran{})
+	db.AutoMigrate(&model.User{}, &model.Role{}, &model.Simpanan{}, &model.Pinjaman{}, &model.Angsuran{}, &model.SHUTahunan{})
 
 	// Seed roles
 	seedRoles(db)
@@ -45,6 +45,11 @@ func main() {
 	angsuranRepo := repository.NewAngsuranRepository(db)
 	angsuranSvc := service.NewAngsuranService(angsuranRepo, pinjamanRepo)
 	angsuranHdl := handler.NewAngsuranHandler(angsuranSvc)
+
+	// SHU dependencies
+	shuRepo := repository.NewSHUTahunanRepository(db)
+	shuSvc := service.NewSHUService(shuRepo)
+	shuHdl := handler.NewSHUHandler(shuSvc)
 
 	r := gin.Default()
 	r.Use(middleware.LoggerMiddleware())
@@ -92,6 +97,15 @@ func main() {
 		protected.DELETE("/angsuran/:id", angsuranHdl.Delete)
 		protected.PUT("/angsuran/:id/verify", angsuranHdl.Verify)
 		protected.GET("/angsuran/pending", angsuranHdl.GetPendingPayments)
+
+		// SHU (Sisa Hasil Usaha) - Admin/Super Admin only
+		protected.POST("/shu/generate", shuHdl.GenerateReport)
+		protected.POST("/shu", shuHdl.SaveSHU)
+		protected.GET("/shu", shuHdl.List)
+		protected.GET("/shu/:id", shuHdl.Detail)
+		protected.PUT("/shu/:id", shuHdl.Update)
+		protected.DELETE("/shu/:id", shuHdl.Delete)
+		protected.GET("/shu/year/:tahun", shuHdl.GetByTahun)
 	}
 
 	r.Run(":8080")
