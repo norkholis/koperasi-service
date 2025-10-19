@@ -8,6 +8,7 @@ import (
 	"koperasi-service/internal/repository"
 	"koperasi-service/internal/service"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -52,6 +53,16 @@ func main() {
 	shuHdl := handler.NewSHUHandler(shuSvc)
 
 	r := gin.Default()
+
+	// CORS middleware
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"}, // Allow all origins, change in production
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
+
 	r.Use(middleware.LoggerMiddleware())
 
 	// Public
