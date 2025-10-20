@@ -21,9 +21,13 @@ func NewAuthHandler(svc *service.AuthService, cfg *config.Config) *AuthHandler {
 
 func (h *AuthHandler) Register(c *gin.Context) {
 	var input struct {
-		Email    string `json:"email" binding:"required,email"`
-		Password string `json:"password" binding:"required,min=6"`
-		RoleID   uint   `json:"role_id"`
+		Email       string `json:"email" binding:"required,email"`
+		Password    string `json:"password" binding:"required,min=6"`
+		Name        string `json:"name" binding:"required"`
+		Address     string `json:"address"`
+		PhoneNumber string `json:"phone_number"`
+		NIK         string `json:"nik" binding:"required"`
+		RoleID      uint   `json:"role_id"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -32,9 +36,13 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	user := &model.User{
-		Email:    input.Email,
-		Password: input.Password,
-		RoleID:   input.RoleID,
+		Email:       input.Email,
+		Password:    input.Password,
+		Name:        input.Name,
+		Address:     input.Address,
+		PhoneNumber: input.PhoneNumber,
+		NIK:         input.NIK,
+		RoleID:      input.RoleID,
 	}
 
 	if err := h.service.Register(user); err != nil {
@@ -72,9 +80,17 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		c.JSON(http.StatusNotFound, utils.ResponseError("user not found"))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"id":    user.ID,
-		"email": user.Email,
-		"role":  gin.H{"id": user.Role.ID, "name": user.Role.Name},
-	})
+	response := gin.H{
+		"id":           user.ID,
+		"email":        user.Email,
+		"name":         user.Name,
+		"address":      user.Address,
+		"phone_number": user.PhoneNumber,
+		"nik":          user.NIK,
+		"role":         gin.H{"id": user.Role.ID, "name": user.Role.Name},
+	}
+	if user.AdminID != nil {
+		response["admin_id"] = *user.AdminID
+	}
+	c.JSON(http.StatusOK, response)
 }

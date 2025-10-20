@@ -17,10 +17,16 @@ All protected endpoints require a Bearer token in the Authorization header:
 Authorization: Bearer {your_jwt_token}
 ```
 
-## Roles
-- **super_admin**: Full access to all resources
-- **admin**: Access to own data and user management
+## Roles & Permissions
+- **super_admin**: Full unrestricted access to all resources and users
+- **admin**: Access to own data + users they registered (admin user hierarchy)
 - **member**: Access to own data only
+
+### Admin User Hierarchy
+- When **admin** users create new users, those users are assigned to them via `admin_id`
+- **admin** users can only access/manage users where `admin_id` matches their own ID
+- **super_admin** users have no restrictions and can access all users regardless of `admin_id`
+- **member** users can only access their own profile
 
 ---
 
@@ -34,6 +40,10 @@ Content-Type: application/json
 {
   "email": "user@example.com",
   "password": "password123",
+  "name": "John Doe",
+  "address": "123 Main Street, City",
+  "phone_number": "081234567890",
+  "nik": "1234567890123456",
   "role_id": 3
 }
 ```
@@ -74,22 +84,32 @@ Authorization: Bearer {token}
 {
   "id": 1,
   "email": "user@example.com",
+  "name": "John Doe",
+  "address": "123 Main Street, City",
+  "phone_number": "081234567890",
+  "nik": "1234567890123456",
   "role": {
     "id": 3,
     "name": "member"
-  }
+  },
+  "admin_id": 1
 }
 ```
 
 ---
 
-## User Management (Admin/Super Admin Only)
+## User Management
 
-### List All Users (Super Admin Only)
+### List All Users
 ```http
 GET /api/users
 Authorization: Bearer {token}
 ```
+
+**Access Control:**
+- **super_admin**: Gets all users
+- **admin**: Gets only users they registered (where `admin_id` matches their ID)
+- **member**: Forbidden
 
 **Response:**
 ```json
@@ -98,30 +118,55 @@ Authorization: Bearer {token}
     {
       "id": 1,
       "email": "admin@example.com",
-      "role_id": 2
+      "name": "Admin User",
+      "address": "Admin Address",
+      "phone_number": "081234567890",
+      "nik": "1234567890123456",
+      "role_id": 2,
+      "admin_id": null
+    },
+    {
+      "id": 2,
+      "email": "member@example.com",
+      "name": "Member User",
+      "address": "Member Address",
+      "phone_number": "087654321098",
+      "nik": "6543210987654321",
+      "role_id": 3,
+      "admin_id": 1
     }
   ]
 }
 ```
 
-### Get User Detail (Super Admin or Self)
+### Get User Detail
 ```http
 GET /api/users/{id}
 Authorization: Bearer {token}
 ```
 
+**Access Control:**
+- **super_admin**: Can get any user
+- **admin**: Can get users they registered OR themselves
+- **member**: Can only get themselves
+
 **Response:**
 ```json
 {
   "data": {
-    "id": 1,
-    "email": "admin@example.com",
-    "role_id": 2
+    "id": 2,
+    "email": "member@example.com",
+    "name": "Member User",
+    "address": "Member Address",
+    "phone_number": "087654321098",
+    "nik": "6543210987654321",
+    "role_id": 3,
+    "admin_id": 1
   }
 }
 ```
 
-### Create User (Super Admin Only)
+### Create User
 ```http
 POST /api/users
 Authorization: Bearer {token}
@@ -130,11 +175,36 @@ Content-Type: application/json
 {
   "email": "newuser@example.com",
   "password": "password123",
+  "name": "New User",
+  "address": "New User Address",
+  "phone_number": "089876543210",
+  "nik": "9876543210987654",
   "role_id": 3
 }
 ```
 
-### Update User (Super Admin or Self)
+**Access Control:**
+- **super_admin**: Can create any user (no `admin_id` assigned)
+- **admin**: Can create users (automatically assigns their ID as `admin_id`)
+- **member**: Forbidden
+
+**Response:**
+```json
+{
+  "data": {
+    "id": 3,
+    "email": "newuser@example.com",
+    "name": "New User",
+    "address": "New User Address",
+    "phone_number": "089876543210",
+    "nik": "9876543210987654",
+    "role_id": 3,
+    "admin_id": 1
+  }
+}
+```
+
+### Update User
 ```http
 PUT /api/users/{id}
 Authorization: Bearer {token}
@@ -142,18 +212,32 @@ Content-Type: application/json
 
 {
   "email": "updated@example.com",
+  "name": "Updated Name",
+  "address": "Updated Address",
+  "phone_number": "081111111111",
+  "nik": "1111111111111111",
   "password": "newpassword123",
   "role_id": 2
 }
 ```
 
+**Access Control:**
+- **super_admin**: Can update any user + change roles
+- **admin**: Can update users they registered OR themselves (cannot change roles)
+- **member**: Can only update themselves (cannot change roles)
+
 **Note:** Only super_admin can change role_id
 
-### Delete User (Super Admin or Self)
+### Delete User
 ```http
 DELETE /api/users/{id}
 Authorization: Bearer {token}
 ```
+
+**Access Control:**
+- **super_admin**: Can delete any user
+- **admin**: Can delete users they registered OR themselves
+- **member**: Can only delete themselves
 
 ---
 
@@ -590,12 +674,17 @@ SHU Anggota = JMA + JUA
 | Endpoint | Member | Admin | Super Admin |
 |----------|--------|-------|-------------|
 | Authentication | ✅ | ✅ | ✅ |
-| User Management | Self only | Self only | All users |
+| User Management | Self only | Self + registered users | All users |
 | Simpanan | Own only | Own only | All records |
 | Pinjaman | Own only | Own only | All records |
 | Angsuran | Own only | Own only | All records |
 | Angsuran Verify | ❌ | Own users | All records |
 | SHU Management | ❌ | ✅ | ✅ |
+
+### User Management Access Details:
+- **Member**: Can only view/edit/delete their own profile
+- **Admin**: Can view/edit/delete themselves + users they registered (where `admin_id` matches their ID)
+- **Super Admin**: Can view/edit/delete any user without restrictions
 
 ---
 
@@ -630,7 +719,80 @@ The system automatically creates database tables and seeds default roles:
 
 ---
 
+## Data Models
+
+### User Model
+```json
+{
+  "id": 1,
+  "email": "user@example.com",
+  "name": "John Doe",
+  "address": "123 Main Street, City",
+  "phone_number": "081234567890",
+  "nik": "1234567890123456",
+  "role_id": 3,
+  "admin_id": 1,
+  "created_at": "2024-01-15T10:00:00Z",
+  "updated_at": "2024-01-15T10:00:00Z"
+}
+```
+
+**Fields:**
+- `id`: Unique user identifier
+- `email`: User's email address (unique)
+- `name`: User's full name (required)
+- `address`: User's address (optional)
+- `phone_number`: User's phone number (optional)
+- `nik`: National Identity Number - unique identifier (required)
+- `role_id`: Reference to role (1=super_admin, 2=admin, 3=member)
+- `admin_id`: ID of the admin who registered this user (null for super_admin users)
+- `created_at`: Registration timestamp
+- `updated_at`: Last modification timestamp
+
+**Admin Hierarchy:**
+- When `admin_id` is `null`: User was created by super_admin or is super_admin
+- When `admin_id` has value: User was registered by the admin with that ID
+- Admin users can only access users where `admin_id` matches their own ID
+
+---
+
 ## Testing Examples
+
+### Admin User Hierarchy Example
+
+1. **Login as Admin:**
+   ```bash
+   curl -X POST http://localhost:8080/api/login \
+     -H "Content-Type: application/json" \
+     -d '{"email":"admin@example.com","password":"password123"}'
+   ```
+
+2. **Admin Creates New User (gets admin_id assigned):**
+   ```bash
+   curl -X POST http://localhost:8080/api/users \
+     -H "Authorization: Bearer {admin_token}" \
+     -H "Content-Type: application/json" \
+     -d '{"email":"member@example.com","password":"password123","name":"New Member","address":"Member Address","phone_number":"081234567890","nik":"1234567890123456","role_id":3}'
+   
+   # Response includes admin_id:
+   # {"data":{"id":5,"email":"member@example.com","name":"New Member","address":"Member Address","phone_number":"081234567890","nik":"1234567890123456","role_id":3,"admin_id":2}}
+   ```
+
+3. **Admin Lists Their Users Only:**
+   ```bash
+   curl -X GET http://localhost:8080/api/users \
+     -H "Authorization: Bearer {admin_token}"
+   
+   # Only returns users where admin_id matches admin's ID
+   ```
+
+4. **Super Admin Sees All Users:**
+   ```bash
+   curl -X GET http://localhost:8080/api/users \
+     -H "Authorization: Bearer {super_admin_token}"
+   
+   # Returns all users regardless of admin_id
+   ```
 
 ### Complete Workflow Example
 
@@ -639,7 +801,7 @@ The system automatically creates database tables and seeds default roles:
    # Register
    curl -X POST http://localhost:8080/api/register \
      -H "Content-Type: application/json" \
-     -d '{"email":"test@example.com","password":"password123","role_id":3}'
+     -d '{"email":"test@example.com","password":"password123","name":"Test User","address":"Test Address","phone_number":"081234567890","nik":"1234567890123456","role_id":3}'
    
    # Login
    curl -X POST http://localhost:8080/api/login \

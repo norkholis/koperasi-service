@@ -31,11 +31,14 @@ func (r *UserRepository) FindByIDWithRole(id uint) (*model.User, error) {
 }
 
 // List returns all users (with role preload if withRole).
-func (r *UserRepository) List(withRole bool) ([]model.User, error) {
+func (r *UserRepository) List(withRole bool, adminID uint) ([]model.User, error) {
 	var users []model.User
 	q := r.db
 	if withRole {
 		q = q.Preload("Role")
+	}
+	if adminID > 0 {
+		q = q.Where("admin_id = ?", adminID)
 	}
 	if err := q.Find(&users).Error; err != nil {
 		return nil, err
