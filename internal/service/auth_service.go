@@ -11,11 +11,12 @@ import (
 )
 
 type AuthService struct {
-	repo *repository.UserRepository
+	repo         *repository.UserRepository
+	simpananRepo *repository.SimpananRepository
 }
 
-func NewAuthService(repo *repository.UserRepository) *AuthService {
-	return &AuthService{repo: repo}
+func NewAuthService(repo *repository.UserRepository, simpananRepo *repository.SimpananRepository) *AuthService {
+	return &AuthService{repo: repo, simpananRepo: simpananRepo}
 }
 
 func (s *AuthService) Register(user *model.User) error {
@@ -24,7 +25,20 @@ func (s *AuthService) Register(user *model.User) error {
 		return err
 	}
 	user.Password = string(hashed)
-	return s.repo.Create(user)
+
+	// Create user first
+	if err := s.repo.Create(user); err != nil {
+		return err
+	}
+
+	// Initialize user wallets (3 types)
+	if err := s.simpananRepo.InitializeUserWallets(user.ID); err != nil {
+		// If wallet initialization fails, we should rollback user creation
+		// For now, we'll just return the error
+		return err
+	}
+
+	return nil
 }
 
 func (s *AuthService) Login(email, password, jwtSecret string) (string, error) {

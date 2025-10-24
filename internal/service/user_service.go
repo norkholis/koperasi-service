@@ -10,12 +10,13 @@ import (
 
 // UserService handles user CRUD with role constraints.
 type UserService struct {
-	repo *repository.UserRepository
+	repo         *repository.UserRepository
+	simpananRepo *repository.SimpananRepository
 }
 
 // NewUserService constructs a new UserService.
-func NewUserService(repo *repository.UserRepository) *UserService {
-	return &UserService{repo: repo}
+func NewUserService(repo *repository.UserRepository, simpananRepo *repository.SimpananRepository) *UserService {
+	return &UserService{repo: repo, simpananRepo: simpananRepo}
 }
 
 // ListUsers returns all users; only super_admin can list all, admin can list their registered users.
@@ -76,7 +77,20 @@ func (s *UserService) CreateUser(requestorID uint, requestorRole string, u *mode
 		}
 		u.Password = string(h)
 	}
-	return s.repo.Create(u)
+
+	// Create user first
+	if err := s.repo.Create(u); err != nil {
+		return err
+	}
+
+	// Initialize user wallets (3 types)
+	if err := s.simpananRepo.InitializeUserWallets(u.ID); err != nil {
+		// If wallet initialization fails, we should rollback user creation
+		// For now, we'll just return the error
+		return err
+	}
+
+	return nil
 }
 
 // UpdateUser updates target user; super_admin any; admin their registered users; others only themselves. Role changes only by super_admin.

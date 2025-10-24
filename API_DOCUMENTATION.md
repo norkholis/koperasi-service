@@ -241,69 +241,232 @@ Authorization: Bearer {token}
 
 ---
 
-## Simpanan (Savings) Management
+## Simpanan (Wallet) Management
 
-### Create Simpanan
+The new simpanan system works as a **wallet** with 3 automatic wallet types for each user:
+- **pokok**: Basic capital savings
+- **wajib**: Mandatory savings  
+- **sukarela**: Voluntary savings
+
+### Business Model:
+1. **Automatic Wallet Creation**: Each user automatically gets 3 wallet types when registered
+2. **User Top-up Flow**: Users can request top-ups → Creates pending transactions → Admin verifies → Balance updated
+3. **Admin Management**: Admin/Super Admin can verify top-up requests and directly adjust balances
+4. **Transaction Tracking**: All transactions are tracked with approval workflow and history
+5. **Role-based Access**: Members see own wallets, Admins manage all wallets
+
+### Key Features:
+- **Wallet Types**: `pokok`, `wajib`, `sukarela` (automatically created for each user)
+- **Top-up Requests**: User-initiated, admin-verified
+- **Balance Adjustments**: Admin-only direct balance modifications
+- **Transaction History**: Complete audit trail for all wallet activities
+- **Verification Workflow**: Pending → Verified/Rejected status for top-ups
+
+---
+
+### Get User Wallets
 ```http
-POST /api/simpanan
+GET /api/simpanan/wallets
 Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "type": "wajib",
-  "amount": 100000,
-  "description": "Simpanan wajib bulan Januari"
-}
 ```
 
-**Types:** `wajib` or `sukarela`
+**Query Parameters:**
+- `user_id` (optional): For admin to view specific user's wallets
 
-### List Simpanan
-```http
-GET /api/simpanan
-Authorization: Bearer {token}
-```
+**Access Control:**
+- **Member**: Can only see their own wallets
+- **Admin/Super Admin**: Can see any user's wallets with `user_id` parameter
 
 **Response:**
 ```json
 {
   "data": [
     {
-      "ID": 1,
-      "CreatedAt": "2024-01-15T10:00:00Z",
-      "UpdatedAt": "2024-01-15T10:00:00Z",
-      "UserID": 1,
-      "Type": "wajib",
-      "Amount": 100000,
-      "Description": "Simpanan wajib bulan Januari"
+      "id": 1,
+      "user_id": 1,
+      "type": "pokok",
+      "balance": 500000,
+      "description": "Wallet pokok",
+      "created_at": "2024-01-15T10:00:00Z",
+      "updated_at": "2024-01-15T10:00:00Z"
+    },
+    {
+      "id": 2,
+      "user_id": 1,
+      "type": "wajib",
+      "balance": 1200000,
+      "description": "Wallet wajib",
+      "created_at": "2024-01-15T10:00:00Z",
+      "updated_at": "2024-01-15T10:00:00Z"
+    },
+    {
+      "id": 3,
+      "user_id": 1,
+      "type": "sukarela",
+      "balance": 800000,
+      "description": "Wallet sukarela",
+      "created_at": "2024-01-15T10:00:00Z",
+      "updated_at": "2024-01-15T10:00:00Z"
     }
   ]
 }
 ```
 
-### Get Simpanan Detail
+### Get All Wallets (Admin Only)
 ```http
-GET /api/simpanan/{id}
+GET /api/simpanan/wallets/all
 Authorization: Bearer {token}
 ```
 
-### Update Simpanan
+**Access Control:** Admin/Super Admin only
+
+### Top-up Wallet
 ```http
-PUT /api/simpanan/{id}
+POST /api/simpanan/topup
 Authorization: Bearer {token}
 Content-Type: application/json
 
 {
-  "type": "sukarela",
-  "amount": 150000,
-  "description": "Updated description"
+  "type": "wajib",
+  "amount": 200000,
+  "description": "Monthly mandatory savings"
 }
 ```
 
-### Delete Simpanan
+**Valid Types:** `pokok`, `wajib`, `sukarela`
+
+**Response:**
+```json
+{
+  "message": "Top-up request created, waiting for admin verification"
+}
+```
+
+**Note:** Creates a pending transaction that requires admin verification.
+
+### Get Wallet Detail
 ```http
-DELETE /api/simpanan/{id}
+GET /api/simpanan/{wallet_id}
 Authorization: Bearer {token}
+```
+
+**Access Control:**
+- **Member**: Can only view their own wallets
+- **Admin/Super Admin**: Can view any wallet
+
+**Response:**
+```json
+{
+  "data": {
+    "id": 1,
+    "user_id": 1,
+    "type": "pokok",
+    "balance": 500000,
+    "description": "Wallet pokok",
+    "created_at": "2024-01-15T10:00:00Z",
+    "updated_at": "2024-01-15T10:00:00Z"
+  }
+}
+```
+
+### Get Wallet Transaction History
+```http
+GET /api/simpanan/{wallet_id}/transactions
+Authorization: Bearer {token}
+```
+
+**Access Control:**
+- **Member**: Can only view their own wallet transactions
+- **Admin/Super Admin**: Can view any wallet transactions
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "simpanan_id": 1,
+      "type": "topup",
+      "amount": 200000,
+      "description": "Monthly mandatory savings",
+      "status": "verified",
+      "verified_by_id": 2,
+      "verified_at": "2024-01-15T11:00:00Z",
+      "created_at": "2024-01-15T10:30:00Z"
+    }
+  ]
+}
+```
+
+### Verify Transaction (Admin Only)
+```http
+PUT /api/simpanan/transactions/{transaction_id}/verify
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "approve": true
+}
+```
+
+**Access Control:** Admin/Super Admin only
+
+**Response:**
+```json
+{
+  "message": "Transaction approved"
+}
+```
+
+**Note:** When approved, the wallet balance is automatically updated.
+
+### Adjust Wallet Balance (Admin Only)
+```http
+PUT /api/simpanan/{wallet_id}/adjust
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "amount": -50000,
+  "description": "Administrative fee deduction"
+}
+```
+
+**Access Control:** Admin/Super Admin only
+
+**Note:** 
+- Positive amounts increase balance
+- Negative amounts decrease balance
+- Creates verified transaction immediately
+
+### Get Pending Transactions (Admin Only)
+```http
+GET /api/simpanan/transactions/pending
+Authorization: Bearer {token}
+```
+
+**Access Control:** Admin/Super Admin only
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": 5,
+      "simpanan_id": 2,
+      "simpanan": {
+        "id": 2,
+        "user_id": 3,
+        "type": "wajib"
+      },
+      "type": "topup",
+      "amount": 150000,
+      "description": "Monthly savings",
+      "status": "pending",
+      "created_at": "2024-01-15T14:30:00Z"
+    }
+  ]
+}
 ```
 
 ---
@@ -675,7 +838,10 @@ SHU Anggota = JMA + JUA
 |----------|--------|-------|-------------|
 | Authentication | ✅ | ✅ | ✅ |
 | User Management | Self only | Self + registered users | All users |
-| Simpanan | Own only | Own only | All records |
+| Simpanan Wallets | Own wallets | All wallets | All wallets |
+| Simpanan Top-up | Own wallets | ❌ | ❌ |
+| Simpanan Verify | ❌ | ✅ | ✅ |
+| Simpanan Adjust | ❌ | ✅ | ✅ |
 | Pinjaman | Own only | Own only | All records |
 | Angsuran | Own only | Own only | All records |
 | Angsuran Verify | ❌ | Own users | All records |
@@ -685,6 +851,12 @@ SHU Anggota = JMA + JUA
 - **Member**: Can only view/edit/delete their own profile
 - **Admin**: Can view/edit/delete themselves + users they registered (where `admin_id` matches their ID)
 - **Super Admin**: Can view/edit/delete any user without restrictions
+
+### Simpanan (Wallet) Access Details:
+- **Member**: Can view own wallets, request top-ups, view own transaction history
+- **Admin/Super Admin**: Can view all wallets, verify/reject top-up requests, adjust balances directly
+- **Top-up Flow**: Member creates request → Admin verifies → Balance updated automatically
+- **Adjust Flow**: Admin can directly modify wallet balances (creates verified transaction)
 
 ---
 
@@ -754,6 +926,70 @@ The system automatically creates database tables and seeds default roles:
 - When `admin_id` has value: User was registered by the admin with that ID
 - Admin users can only access users where `admin_id` matches their own ID
 
+### Simpanan (Wallet) Model
+```json
+{
+  "id": 1,
+  "user_id": 1,
+  "type": "wajib",
+  "balance": 1200000,
+  "description": "Wallet wajib",
+  "created_at": "2024-01-15T10:00:00Z",
+  "updated_at": "2024-01-15T10:00:00Z"
+}
+```
+
+**Fields:**
+- `id`: Unique wallet identifier
+- `user_id`: Owner of the wallet
+- `type`: Wallet type (`pokok`, `wajib`, `sukarela`)
+- `balance`: Current wallet balance
+- `description`: Wallet description
+- `created_at`: Wallet creation timestamp
+- `updated_at`: Last modification timestamp
+
+**Wallet Types:**
+- `pokok`: Basic capital savings
+- `wajib`: Mandatory monthly savings
+- `sukarela`: Voluntary savings
+
+### Simpanan Transaction Model
+```json
+{
+  "id": 1,
+  "simpanan_id": 1,
+  "type": "topup",
+  "amount": 200000,
+  "description": "Monthly mandatory savings",
+  "status": "verified",
+  "verified_by_id": 2,
+  "verified_at": "2024-01-15T11:00:00Z",
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-01-15T11:00:00Z"
+}
+```
+
+**Fields:**
+- `id`: Unique transaction identifier
+- `simpanan_id`: Reference to the wallet
+- `type`: Transaction type (`topup`, `adjustment`)
+- `amount`: Transaction amount (positive/negative)
+- `description`: Transaction description
+- `status`: Transaction status (`pending`, `verified`, `rejected`)
+- `verified_by_id`: Admin who verified the transaction
+- `verified_at`: Verification timestamp
+- `created_at`: Transaction creation timestamp
+- `updated_at`: Last modification timestamp
+
+**Transaction Types:**
+- `topup`: User-initiated wallet top-up (requires verification)
+- `adjustment`: Admin-initiated balance adjustment (auto-verified)
+
+**Transaction Status:**
+- `pending`: Waiting for admin verification
+- `verified`: Approved and balance updated
+- `rejected`: Rejected by admin
+
 ---
 
 ## Testing Examples
@@ -809,15 +1045,29 @@ The system automatically creates database tables and seeds default roles:
      -d '{"email":"test@example.com","password":"password123"}'
    ```
 
-2. **Create Savings:**
+2. **View Wallets:**
    ```bash
-   curl -X POST http://localhost:8080/api/simpanan \
-     -H "Authorization: Bearer {token}" \
-     -H "Content-Type: application/json" \
-     -d '{"type":"wajib","amount":1000000,"description":"Initial savings"}'
+   curl -X GET http://localhost:8080/api/simpanan/wallets \
+     -H "Authorization: Bearer {token}"
    ```
 
-3. **Apply for Loan:**
+3. **Top-up Wallet:**
+   ```bash
+   curl -X POST http://localhost:8080/api/simpanan/topup \
+     -H "Authorization: Bearer {token}" \
+     -H "Content-Type: application/json" \
+     -d '{"type":"wajib","amount":500000,"description":"Monthly savings"}'
+   ```
+
+4. **Admin Verify Transaction:**
+   ```bash
+   curl -X PUT http://localhost:8080/api/simpanan/transactions/1/verify \
+     -H "Authorization: Bearer {admin_token}" \
+     -H "Content-Type: application/json" \
+     -d '{"approve":true}'
+   ```
+
+5. **Apply for Loan:**
    ```bash
    curl -X POST http://localhost:8080/api/pinjaman \
      -H "Authorization: Bearer {token}" \
@@ -825,7 +1075,7 @@ The system automatically creates database tables and seeds default roles:
      -d '{"jumlah_pinjaman":5000000,"bunga_persen":2.5,"lama_bulan":12,"jumlah_angsuran":450000}'
    ```
 
-4. **Make Payment:**
+6. **Make Payment:**
    ```bash
    curl -X POST http://localhost:8080/api/angsuran \
      -H "Authorization: Bearer {token}" \

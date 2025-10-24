@@ -23,18 +23,20 @@ func main() {
 	}
 
 	// Auto migrate
-	db.AutoMigrate(&model.User{}, &model.Role{}, &model.Simpanan{}, &model.Pinjaman{}, &model.Angsuran{}, &model.SHUTahunan{})
+	db.AutoMigrate(&model.User{}, &model.Role{}, &model.Simpanan{}, &model.SimpananTransaction{}, &model.Pinjaman{}, &model.Angsuran{}, &model.SHUTahunan{})
 
 	// Seed roles
 	seedRoles(db)
 
 	// Setup dependencies
 	userRepo := repository.NewUserRepository(db)
-	authService := service.NewAuthService(userRepo)
+	simpananRepo := repository.NewSimpananRepository(db)
+
+	authService := service.NewAuthService(userRepo, simpananRepo)
 	authHandler := handler.NewAuthHandler(authService, cfg)
 
 	// Additional services
-	userService := service.NewUserService(userRepo)
+	userService := service.NewUserService(userRepo, simpananRepo)
 	userHandler := handler.NewUserHandler(userService)
 
 	// Pinjaman dependencies
@@ -70,7 +72,6 @@ func main() {
 	r.POST("/api/login", authHandler.Login)
 
 	// Simpanan dependencies
-	simpananRepo := repository.NewSimpananRepository(db)
 	simpananSvc := service.NewSimpananService(simpananRepo)
 	simpananHdl := handler.NewSimpananHandler(simpananSvc)
 
@@ -79,12 +80,15 @@ func main() {
 	protected.Use(middleware.AuthMiddleware(cfg, userRepo))
 	{
 		protected.GET("/me", authHandler.Me)
-		// Simpanan CRUD
-		protected.POST("/simpanan", simpananHdl.Create)
-		protected.GET("/simpanan", simpananHdl.List)
-		protected.GET("/simpanan/:id", simpananHdl.Detail)
-		protected.PUT("/simpanan/:id", simpananHdl.Update)
-		protected.DELETE("/simpanan/:id", simpananHdl.Delete)
+		// Simpanan (Wallet) Management
+		protected.GET("/simpanan/wallets", simpananHdl.GetWallets)                          // Get user wallets (with optional user_id param for admin)
+		protected.GET("/simpanan/wallets/all", simpananHdl.GetAllWallets)                   // Get all wallets (admin only)
+		protected.POST("/simpanan/topup", simpananHdl.TopupWallet)                          // Top-up wallet (creates pending transaction)
+		protected.GET("/simpanan/:id", simpananHdl.GetWalletDetail)                         // Get wallet detail
+		protected.GET("/simpanan/:id/transactions", simpananHdl.GetWalletTransactions)      // Get wallet transaction history
+		protected.PUT("/simpanan/:id/adjust", simpananHdl.AdjustWallet)                     // Admin adjust wallet balance
+		protected.GET("/simpanan/transactions/pending", simpananHdl.GetPendingTransactions) // Get pending transactions (admin)
+		protected.PUT("/simpanan/transactions/:id/verify", simpananHdl.VerifyTransaction)   // Verify transaction (admin)
 
 		// User CRUD
 		protected.GET("/users", userHandler.List)
