@@ -9,15 +9,17 @@ import (
 
 // AngsuranService handles business logic for Angsuran with role constraints
 type AngsuranService struct {
-	repo        *repository.AngsuranRepository
+	repo         *repository.AngsuranRepository
 	pinjamanRepo *repository.PinjamanRepository
+	userRepo     *repository.UserRepository
 }
 
 // NewAngsuranService creates a new service instance
-func NewAngsuranService(repo *repository.AngsuranRepository, pinjamanRepo *repository.PinjamanRepository) *AngsuranService {
+func NewAngsuranService(repo *repository.AngsuranRepository, pinjamanRepo *repository.PinjamanRepository, userRepo *repository.UserRepository) *AngsuranService {
 	return &AngsuranService{
-		repo:        repo,
+		repo:         repo,
 		pinjamanRepo: pinjamanRepo,
+		userRepo:     userRepo,
 	}
 }
 
@@ -28,12 +30,12 @@ func (s *AngsuranService) Create(requestorID uint, requestorRole string, a *mode
 	if err != nil {
 		return errors.New("pinjaman not found")
 	}
-	
+
 	// Check access: super_admin can create for any, others only for their own loans
 	if requestorRole != "super_admin" && pinjaman.UserID != requestorID {
 		return errors.New("forbidden")
 	}
-	
+
 	// Set default values
 	if a.TanggalBayar.IsZero() {
 		a.TanggalBayar = time.Now()
@@ -44,12 +46,21 @@ func (s *AngsuranService) Create(requestorID uint, requestorRole string, a *mode
 	if a.UserID == 0 {
 		a.UserID = pinjaman.UserID
 	}
-	
+
+	// Auto-set angsuran_ke if not provided
+	if a.AngsuranKe == 0 {
+		nextKe, err := s.repo.GetNextAngsuranKe(a.PinjamanID)
+		if err != nil {
+			return err
+		}
+		a.AngsuranKe = nextKe
+	}
+
 	// Calculate total if not provided
 	if a.TotalBayar == 0 {
 		a.TotalBayar = a.Pokok + a.Bunga + a.Denda
 	}
-	
+
 	return s.repo.Create(a)
 }
 
@@ -58,10 +69,13 @@ func (s *AngsuranService) List(requestorID uint, requestorRole string, pinjamanI
 	if requestorRole == "super_admin" {
 		// Super admin can see all angsuran
 		return s.repo.GetAll(0, pinjamanID)
+	} else if requestorRole == "admin" {
+		// Admin can see angsuran for users they registered
+		return s.repo.GetByAdminUserID(requestorID, pinjamanID)
+	} else {
+		// Members can only see their own angsuran
+		return s.repo.GetAll(requestorID, pinjamanID)
 	}
-	
-	// Admin and member can only see their own angsuran
-	return s.repo.GetAll(requestorID, pinjamanID)
 }
 
 // Get returns Angsuran by id with access control
@@ -70,17 +84,27 @@ func (s *AngsuranService) Get(requestorID uint, requestorRole string, id uint) (
 	if err != nil {
 		return nil, err
 	}
-	
-	// Super admin can view any angsuran
+
+	// Check access permissions based on role
 	if requestorRole == "super_admin" {
+		// Super admin can view any angsuran
 		return a, nil
+	} else if requestorRole == "admin" {
+		// Admin can view angsuran for users they registered
+		user, err := s.userRepo.FindByID(a.UserID)
+		if err != nil {
+			return nil, err
+		}
+		if user.AdminID == nil || *user.AdminID != requestorID {
+			return nil, errors.New("forbidden")
+		}
+	} else {
+		// Members can only view their own angsuran
+		if a.UserID != requestorID {
+			return nil, errors.New("forbidden")
+		}
 	}
-	
-	// Admin and member can only view their own angsuran
-	if a.UserID != requestorID {
-		return nil, errors.New("forbidden")
-	}
-	
+
 	return a, nil
 }
 
@@ -90,18 +114,20 @@ func (s *AngsuranService) Update(requestorID uint, requestorRole string, id uint
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Super admin can update any angsuran
 	// Admin and member can only update their own angsuran
 	if requestorRole != "super_admin" && existing.UserID != requestorID {
 		return nil, errors.New("forbidden")
 	}
-	
-	// Update allowed fields
+
+	// Update allowed fields - only update if explicitly provided
 	if payload.Pokok > 0 {
 		existing.Pokok = payload.Pokok
 	}
-	if payload.Bunga >= 0 {
+	// For bunga, check if it's explicitly set (even to 0) by checking if it's different from default
+	// We should only update bunga if it's explicitly provided in the request
+	if payload.Bunga > 0 {
 		existing.Bunga = payload.Bunga
 	}
 	if payload.Denda >= 0 {
@@ -116,16 +142,16 @@ func (s *AngsuranService) Update(requestorID uint, requestorRole string, id uint
 	if !payload.TanggalBayar.IsZero() {
 		existing.TanggalBayar = payload.TanggalBayar
 	}
-	
+
 	// Recalculate total if components changed
 	if payload.Pokok > 0 || payload.Bunga >= 0 || payload.Denda >= 0 {
 		existing.TotalBayar = existing.Pokok + existing.Bunga + existing.Denda
 	}
-	
+
 	if err := s.repo.Update(existing); err != nil {
 		return nil, err
 	}
-	
+
 	return existing, nil
 }
 
@@ -135,13 +161,13 @@ func (s *AngsuranService) Delete(requestorID uint, requestorRole string, id uint
 	if err != nil {
 		return err
 	}
-	
+
 	// Super admin can delete any angsuran
 	// Admin and member can only delete their own angsuran
 	if requestorRole != "super_admin" && existing.UserID != requestorID {
 		return errors.New("forbidden")
 	}
-	
+
 	return s.repo.Delete(id)
 }
 
@@ -151,25 +177,34 @@ func (s *AngsuranService) VerifyPayment(requestorID uint, requestorRole string, 
 	if requestorRole != "admin" && requestorRole != "super_admin" {
 		return nil, errors.New("forbidden")
 	}
-	
+
 	existing, err := s.repo.GetByID(id)
 	if err != nil {
 		return nil, err
 	}
-	
-	// Admin can only verify payments for their users, super_admin can verify any
-	if requestorRole == "admin" && existing.UserID != requestorID {
-		return nil, errors.New("forbidden")
+
+	// Check access permissions based on role
+	if requestorRole == "super_admin" {
+		// Super admin can verify any payment
+	} else if requestorRole == "admin" {
+		// Admin can verify payments for users they registered
+		user, err := s.userRepo.FindByID(existing.UserID)
+		if err != nil {
+			return nil, err
+		}
+		if user.AdminID == nil || *user.AdminID != requestorID {
+			return nil, errors.New("forbidden")
+		}
 	}
-	
+
 	// Validate status
 	validStatuses := map[string]bool{"verified": true, "kurang": true, "lebih": true}
 	if !validStatuses[status] {
 		return nil, errors.New("invalid status for verification")
 	}
-	
+
 	existing.Status = status
-	
+
 	// If payment is verified, update the pinjaman's remaining installments
 	if status == "verified" {
 		pinjaman, err := s.pinjamanRepo.GetByID(existing.PinjamanID)
@@ -181,11 +216,11 @@ func (s *AngsuranService) VerifyPayment(requestorID uint, requestorRole string, 
 			s.pinjamanRepo.Update(pinjaman)
 		}
 	}
-	
+
 	if err := s.repo.Update(existing); err != nil {
 		return nil, err
 	}
-	
+
 	return existing, nil
 }
 
@@ -194,10 +229,10 @@ func (s *AngsuranService) GetPendingPayments(requestorID uint, requestorRole str
 	if requestorRole == "super_admin" {
 		return s.repo.GetByStatus("proses", 0)
 	}
-	
+
 	if requestorRole == "admin" {
 		return s.repo.GetByStatus("proses", requestorID)
 	}
-	
+
 	return nil, errors.New("forbidden")
 }

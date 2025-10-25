@@ -61,3 +61,15 @@ func (r *PinjamanRepository) GetByKodePinjaman(kode string) (*model.Pinjaman, er
 	}
 	return &p, nil
 }
+
+// GetByAdminUserID returns pinjaman records for users managed by admin
+func (r *PinjamanRepository) GetByAdminUserID(adminID uint) ([]model.Pinjaman, error) {
+	var list []model.Pinjaman
+	if err := r.db.Preload("User").
+		Joins("JOIN users ON pinjaman.user_id = users.id").
+		Where("users.admin_id = ?", adminID).
+		Find(&list).Error; err != nil {
+		return nil, err
+	}
+	return list, nil
+}

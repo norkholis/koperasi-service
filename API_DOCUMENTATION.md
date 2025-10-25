@@ -498,6 +498,11 @@ GET /api/pinjaman
 Authorization: Bearer {token}
 ```
 
+**Role-based Access:**
+- **Regular Users**: Can only see their own loans
+- **Admin Users**: Can see loans from users they registered (admin hierarchy)
+- **Super Admin**: Can see all loans in the system
+
 **Response:**
 ```json
 {
@@ -529,6 +534,13 @@ GET /api/pinjaman/{id}
 Authorization: Bearer {token}
 ```
 
+**Role-based Access:**
+- **Regular Users**: Can only access their own loan details
+- **Admin Users**: Can access loan details for users they registered
+- **Super Admin**: Can access any loan details
+
+**Response:** Same structure as List Pinjaman but for a single loan.
+
 ### Update Pinjaman
 ```http
 PUT /api/pinjaman/{id}
@@ -537,9 +549,33 @@ Content-Type: application/json
 
 {
   "status": "disetujui",
-  "sisa_angsuran": 11
+  "jumlah_pinjaman": 5000000,
+  "bunga_persen": 2.5,
+  "lama_bulan": 12,
+  "jumlah_angsuran": 450000
 }
 ```
+
+**Important Notes:**
+- `sisa_angsuran` cannot be directly updated via API
+- `sisa_angsuran` is automatically managed by the system:
+  - Initialized to `lama_bulan` when loan is created
+  - Decremented by 1 when installment payments are verified
+  - When reaches 0, loan status automatically becomes "lunas"
+- `bunga_persen` is only updated when explicitly provided with value > 0
+- Fields with 0 values are ignored to prevent accidental resets
+
+**Example - Approve loan without changing other fields:**
+```json
+{
+  "status": "disetujui"
+}
+```
+
+**Role-based Access:**
+- **Regular Users**: Can only update their own loan details
+- **Admin Users**: Can update loans for users they registered
+- **Super Admin**: Can update any loan
 
 **Valid statuses:** `proses`, `disetujui`, `lunas`, `macet`
 
@@ -548,6 +584,28 @@ Content-Type: application/json
 DELETE /api/pinjaman/{id}
 Authorization: Bearer {token}
 ```
+
+**Role-based Access:**
+- **Regular Users**: Can only delete their own loans
+- **Admin Users**: Can delete loans for users they registered
+- **Super Admin**: Can delete any loan
+
+---
+
+## Loan Workflow & Business Logic
+
+### Loan Lifecycle
+1. **Application**: User creates loan with status "proses" and `sisa_angsuran = lama_bulan`
+2. **Approval**: Admin changes status to "disetujui" (approved) - `sisa_angsuran` remains unchanged
+3. **Payments**: User makes installment payments (angsuran) with status "proses"  
+4. **Verification**: Admin verifies payments - `sisa_angsuran` decrements by 1 for each verified payment
+5. **Completion**: When `sisa_angsuran = 0`, loan status automatically becomes "lunas" (paid off)
+
+### Important Rules
+- `sisa_angsuran` is **system-managed** and cannot be directly updated via API
+- Only verified installment payments can reduce `sisa_angsuran`
+- Loan approval does NOT affect the remaining installment count
+- Each verified payment reduces `sisa_angsuran` by exactly 1
 
 ---
 
@@ -561,16 +619,20 @@ Content-Type: application/json
 
 {
   "pinjaman_id": 1,
-  "angsuran_ke": 1,
   "pokok": 400000,
   "bunga": 50000,
   "denda": 0
 }
 ```
 
+**Auto-generated fields:**
+- `angsuran_ke`: Automatically incremented based on existing payments for the loan
+- `total_bayar`: Auto-calculated if not provided (pokok + bunga + denda)
+
 **Optional fields:**
-- `total_bayar`: Auto-calculated if not provided
+- `angsuran_ke`: Can be manually specified if needed (otherwise auto-generated)
 - `user_id`: Defaults to loan owner
+- `denda`: Defaults to 0
 
 ### List Angsuran
 ```http
@@ -580,6 +642,11 @@ Authorization: Bearer {token}
 # Optional filter by loan
 GET /api/angsuran?pinjaman_id=1
 ```
+
+**Role-based Access:**
+- **Regular Users**: Can only see their own installment payments
+- **Admin Users**: Can see installment payments from users they registered (admin hierarchy)
+- **Super Admin**: Can see all installment payments in the system
 
 **Response:**
 ```json
@@ -842,9 +909,9 @@ SHU Anggota = JMA + JUA
 | Simpanan Top-up | Own wallets | ❌ | ❌ |
 | Simpanan Verify | ❌ | ✅ | ✅ |
 | Simpanan Adjust | ❌ | ✅ | ✅ |
-| Pinjaman | Own only | Own only | All records |
-| Angsuran | Own only | Own only | All records |
-| Angsuran Verify | ❌ | Own users | All records |
+| Pinjaman | Own only | Own + registered users | All records |
+| Angsuran | Own only | Own + registered users | All records |
+| Angsuran Verify | ❌ | Own + registered users | All records |
 | SHU Management | ❌ | ✅ | ✅ |
 
 ### User Management Access Details:

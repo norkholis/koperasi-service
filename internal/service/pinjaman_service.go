@@ -10,12 +10,13 @@ import (
 
 // PinjamanService handles business logic for Pinjaman with role constraints
 type PinjamanService struct {
-	repo *repository.PinjamanRepository
+	repo     *repository.PinjamanRepository
+	userRepo *repository.UserRepository
 }
 
 // NewPinjamanService creates a new service instance
-func NewPinjamanService(repo *repository.PinjamanRepository) *PinjamanService {
-	return &PinjamanService{repo: repo}
+func NewPinjamanService(repo *repository.PinjamanRepository, userRepo *repository.UserRepository) *PinjamanService {
+	return &PinjamanService{repo: repo, userRepo: userRepo}
 }
 
 // Create adds a new Pinjaman (members can create for themselves, admins can create for any user)
@@ -51,7 +52,12 @@ func (s *PinjamanService) List(requestorID uint, requestorRole string) ([]model.
 		return s.repo.GetAll(0)
 	}
 
-	// Admin and member can only see their own loans
+	if requestorRole == "admin" {
+		// Admin can see loans from users they registered
+		return s.repo.GetByAdminUserID(requestorID)
+	}
+
+	// Members can only see their own loans
 	return s.repo.GetAll(requestorID)
 }
 
@@ -67,7 +73,22 @@ func (s *PinjamanService) Get(requestorID uint, requestorRole string, id uint) (
 		return p, nil
 	}
 
-	// Admin and member can only view their own loans
+	// Admin can view loans from users they registered or their own loans
+	if requestorRole == "admin" {
+		// Check if loan owner is their own or user they registered
+		user, err := s.userRepo.FindByID(p.UserID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Allow if it's admin's own loan or if user was registered by this admin
+		if p.UserID == requestorID || (user.AdminID != nil && *user.AdminID == requestorID) {
+			return p, nil
+		}
+		return nil, errors.New("forbidden")
+	}
+
+	// Members can only view their own loans
 	if p.UserID != requestorID {
 		return nil, errors.New("forbidden")
 	}
@@ -82,28 +103,47 @@ func (s *PinjamanService) Update(requestorID uint, requestorRole string, id uint
 		return nil, err
 	}
 
-	// Super admin can update any loan
-	// Admin and member can only update their own loans
-	if requestorRole != "super_admin" && existing.UserID != requestorID {
-		return nil, errors.New("forbidden")
+	// Check access permissions based on role
+	if requestorRole == "super_admin" {
+		// Super admin can update any loan
+	} else if requestorRole == "admin" {
+		// Admin can update loans from users they registered
+		user, err := s.userRepo.FindByID(existing.UserID)
+		if err != nil {
+			return nil, err
+		}
+		if user.AdminID == nil || *user.AdminID != requestorID {
+			return nil, errors.New("forbidden")
+		}
+	} else {
+		// Members can only update their own loans
+		if existing.UserID != requestorID {
+			return nil, errors.New("forbidden")
+		}
 	}
 
 	// Update allowed fields
 	if payload.JumlahPinjaman > 0 {
 		existing.JumlahPinjaman = payload.JumlahPinjaman
 	}
-	if payload.BungaPersen >= 0 {
+	// Only update BungaPersen if explicitly provided (> 0)
+	// This prevents overwriting existing interest rate with default 0 value
+	if payload.BungaPersen > 0 {
 		existing.BungaPersen = payload.BungaPersen
 	}
 	if payload.LamaBulan > 0 {
 		existing.LamaBulan = payload.LamaBulan
+		// If loan duration changes, update remaining installments accordingly
+		// Only if loan is still in "proses" status
+		if existing.Status == "proses" {
+			existing.SisaAngsuran = payload.LamaBulan
+		}
 	}
 	if payload.JumlahAngsuran > 0 {
 		existing.JumlahAngsuran = payload.JumlahAngsuran
 	}
-	if payload.SisaAngsuran >= 0 {
-		existing.SisaAngsuran = payload.SisaAngsuran
-	}
+	// Note: SisaAngsuran cannot be directly updated via API
+	// It's only decremented by the system when payments are verified
 	if payload.Status != "" {
 		existing.Status = payload.Status
 	}
@@ -122,10 +162,23 @@ func (s *PinjamanService) Delete(requestorID uint, requestorRole string, id uint
 		return err
 	}
 
-	// Super admin can delete any loan
-	// Admin and member can only delete their own loans
-	if requestorRole != "super_admin" && existing.UserID != requestorID {
-		return errors.New("forbidden")
+	// Check access permissions based on role
+	if requestorRole == "super_admin" {
+		// Super admin can delete any loan
+	} else if requestorRole == "admin" {
+		// Admin can delete loans from users they registered
+		user, err := s.userRepo.FindByID(existing.UserID)
+		if err != nil {
+			return err
+		}
+		if user.AdminID == nil || *user.AdminID != requestorID {
+			return errors.New("forbidden")
+		}
+	} else {
+		// Members can only delete their own loans
+		if existing.UserID != requestorID {
+			return errors.New("forbidden")
+		}
 	}
 
 	return s.repo.Delete(id)

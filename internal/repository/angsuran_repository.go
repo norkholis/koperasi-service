@@ -25,14 +25,14 @@ func (r *AngsuranRepository) Create(a *model.Angsuran) error {
 func (r *AngsuranRepository) GetAll(userID uint, pinjamanID uint) ([]model.Angsuran, error) {
 	var list []model.Angsuran
 	q := r.db.Preload("Pinjaman").Preload("User")
-	
+
 	if userID > 0 {
 		q = q.Where("user_id = ?", userID)
 	}
 	if pinjamanID > 0 {
 		q = q.Where("pinjaman_id = ?", pinjamanID)
 	}
-	
+
 	if err := q.Find(&list).Error; err != nil {
 		return nil, err
 	}
@@ -73,13 +73,45 @@ func (r *AngsuranRepository) GetByPinjamanAndAngsuranKe(pinjamanID uint, angsura
 func (r *AngsuranRepository) GetByStatus(status string, userID uint) ([]model.Angsuran, error) {
 	var list []model.Angsuran
 	q := r.db.Preload("Pinjaman").Preload("User").Where("status = ?", status)
-	
+
 	if userID > 0 {
 		q = q.Where("user_id = ?", userID)
 	}
-	
+
 	if err := q.Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil
+}
+
+// GetByAdminUserID returns angsuran for users registered by the admin
+func (r *AngsuranRepository) GetByAdminUserID(adminID uint, pinjamanID uint) ([]model.Angsuran, error) {
+	var list []model.Angsuran
+	q := r.db.Preload("Pinjaman").Preload("User").
+		Joins("JOIN users ON angsurans.user_id = users.id").
+		Where("users.admin_id = ?", adminID)
+
+	if pinjamanID > 0 {
+		q = q.Where("angsurans.pinjaman_id = ?", pinjamanID)
+	}
+
+	if err := q.Find(&list).Error; err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+// GetNextAngsuranKe returns the next installment number for a loan
+func (r *AngsuranRepository) GetNextAngsuranKe(pinjamanID uint) (int, error) {
+	var maxAngsuranKe int
+	err := r.db.Model(&model.Angsuran{}).
+		Where("pinjaman_id = ?", pinjamanID).
+		Select("COALESCE(MAX(angsuran_ke), 0)").
+		Scan(&maxAngsuranKe).Error
+
+	if err != nil {
+		return 0, err
+	}
+
+	return maxAngsuranKe + 1, nil
 }

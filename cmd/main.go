@@ -41,12 +41,12 @@ func main() {
 
 	// Pinjaman dependencies
 	pinjamanRepo := repository.NewPinjamanRepository(db)
-	pinjamanSvc := service.NewPinjamanService(pinjamanRepo)
+	pinjamanSvc := service.NewPinjamanService(pinjamanRepo, userRepo)
 	pinjamanHdl := handler.NewPinjamanHandler(pinjamanSvc)
 
 	// Angsuran dependencies
 	angsuranRepo := repository.NewAngsuranRepository(db)
-	angsuranSvc := service.NewAngsuranService(angsuranRepo, pinjamanRepo)
+	angsuranSvc := service.NewAngsuranService(angsuranRepo, pinjamanRepo, userRepo)
 	angsuranHdl := handler.NewAngsuranHandler(angsuranSvc)
 
 	// SHU dependencies

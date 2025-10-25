@@ -20,3 +20,8 @@ type Pinjaman struct {
 	Status         string    `gorm:"type:varchar(20);check:status IN ('proses', 'disetujui', 'lunas', 'macet')" json:"status"`
 	User           User      `gorm:"foreignKey:UserID" json:"user,omitempty"`
 }
+
+// TableName specifies the table name for Pinjaman model
+func (Pinjaman) TableName() string {
+	return "pinjaman"
+}
