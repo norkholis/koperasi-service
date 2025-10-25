@@ -9,10 +9,15 @@ import (
 // SHUTahunan represents annual profit sharing (Sisa Hasil Usaha) record
 type SHUTahunan struct {
 	gorm.Model
-	Tahun         int       `gorm:"not null;index" json:"tahun"`
-	TotalSHU      float64   `gorm:"type:decimal(15,2);not null" json:"total_shu"`
-	TanggalHitung time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"tanggal_hitung"`
-	Status        string    `gorm:"type:varchar(20);check:status IN ('draft', 'final')" json:"status"`
+	Tahun                    int       `gorm:"not null;index" json:"tahun"`
+	PendapatanOperasional    float64   `gorm:"type:decimal(15,2);default:0" json:"pendapatan_operasional"`
+	PendapatanNonOperasional float64   `gorm:"type:decimal(15,2);default:0" json:"pendapatan_non_operasional"`
+	BebanOperasional         float64   `gorm:"type:decimal(15,2);default:0" json:"beban_operasional"`
+	BebanNonOperasional      float64   `gorm:"type:decimal(15,2);default:0" json:"beban_non_operasional"`
+	BebanPajak               float64   `gorm:"type:decimal(15,2);default:0" json:"beban_pajak"`
+	TotalSHU                 float64   `gorm:"type:decimal(15,2);not null" json:"total_shu"`
+	TanggalHitung            time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"tanggal_hitung"`
+	Status                   string    `gorm:"type:varchar(20);check:status IN ('draft', 'final')" json:"status"`
 }
 
 // SHUAnggota represents individual member's SHU calculation result
@@ -28,12 +33,17 @@ type SHUAnggota struct {
 
 // SHUReport represents the complete SHU calculation report
 type SHUReport struct {
-	Tahun             int          `json:"tahun"`
-	TotalSHUKoperasi  float64      `json:"total_shu_koperasi"`
-	PersenJasaModal   float64      `json:"persen_jasa_modal"`
-	PersenJasaUsaha   float64      `json:"persen_jasa_usaha"`
-	TotalSimpananAll  float64      `json:"total_simpanan_all"`
-	TotalPenjualanAll float64      `json:"total_penjualan_all"`
-	TanggalHitung     time.Time    `json:"tanggal_hitung"`
-	DetailAnggota     []SHUAnggota `json:"detail_anggota"`
+	Tahun                    int          `json:"tahun"`
+	PendapatanOperasional    float64      `json:"pendapatan_operasional"`
+	PendapatanNonOperasional float64      `json:"pendapatan_non_operasional"`
+	BebanOperasional         float64      `json:"beban_operasional"`
+	BebanNonOperasional      float64      `json:"beban_non_operasional"`
+	BebanPajak               float64      `json:"beban_pajak"`
+	TotalSHUKoperasi         float64      `json:"total_shu_koperasi"`
+	PersenJasaModal          float64      `json:"persen_jasa_modal"`
+	PersenJasaUsaha          float64      `json:"persen_jasa_usaha"`
+	TotalSimpananAll         float64      `json:"total_simpanan_all"`
+	TotalPenjualanAll        float64      `json:"total_penjualan_all"`
+	TanggalHitung            time.Time    `json:"tanggal_hitung"`
+	DetailAnggota            []SHUAnggota `json:"detail_anggota"`
 }

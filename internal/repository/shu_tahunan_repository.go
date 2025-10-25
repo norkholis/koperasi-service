@@ -74,23 +74,23 @@ func (r *SHUTahunanRepository) GetSimpananByUserAndYear(tahun int) (map[uint]flo
 		UserID uint    `json:"user_id"`
 		Total  float64 `json:"total"`
 	}
-	
+
 	var results []UserSimpanan
 	err := r.db.Model(&model.Simpanan{}).
 		Select("user_id, COALESCE(SUM(amount), 0) as total").
 		Where("EXTRACT(YEAR FROM created_at) = ?", tahun).
 		Group("user_id").
 		Scan(&results).Error
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	userSimpanan := make(map[uint]float64)
 	for _, result := range results {
 		userSimpanan[result.UserID] = result.Total
 	}
-	
+
 	return userSimpanan, nil
 }
 
@@ -111,24 +111,50 @@ func (r *SHUTahunanRepository) GetPenjualanByUserAndYear(tahun int) (map[uint]fl
 		UserID uint    `json:"user_id"`
 		Total  float64 `json:"total"`
 	}
-	
+
 	var results []UserPenjualan
 	err := r.db.Model(&model.Pinjaman{}).
 		Select("user_id, COALESCE(SUM(jumlah_pinjaman), 0) as total").
 		Where("EXTRACT(YEAR FROM created_at) = ?", tahun).
 		Group("user_id").
 		Scan(&results).Error
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	userPenjualan := make(map[uint]float64)
 	for _, result := range results {
 		userPenjualan[result.UserID] = result.Total
 	}
-	
+
 	return userPenjualan, nil
+}
+
+// GetPendapatanOperasionalByYear calculates operational income for a specific year
+// This includes income from loans (bunga), fees, and other operational activities
+func (r *SHUTahunanRepository) GetPendapatanOperasionalByYear(tahun int) (float64, error) {
+	var total float64
+
+	// Calculate from loan interest (bunga from angsuran that are verified)
+	err := r.db.Model(&model.Angsuran{}).
+		Select("COALESCE(SUM(bunga), 0)").
+		Where("EXTRACT(YEAR FROM created_at) = ? AND status = ?", tahun, "verified").
+		Scan(&total).Error
+
+	if err != nil {
+		return 0, err
+	}
+
+	return total, nil
+}
+
+// GetPendapatanNonOperasionalByYear calculates non-operational income for a specific year
+// This could include investment returns, grants, or other non-operational income
+func (r *SHUTahunanRepository) GetPendapatanNonOperasionalByYear(tahun int) (float64, error) {
+	// For now, this returns 0 as we don't have non-operational income tracking
+	// This can be extended later when non-operational income sources are added
+	return 0, nil
 }
 
 // GetAllUsers returns all users for SHU calculation

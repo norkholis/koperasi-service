@@ -23,7 +23,7 @@ func main() {
 	}
 
 	// Auto migrate
-	db.AutoMigrate(&model.User{}, &model.Role{}, &model.Simpanan{}, &model.SimpananTransaction{}, &model.Pinjaman{}, &model.Angsuran{}, &model.SHUTahunan{})
+	db.AutoMigrate(&model.User{}, &model.Role{}, &model.Simpanan{}, &model.SimpananTransaction{}, &model.Pinjaman{}, &model.Angsuran{}, &model.SHUTahunan{}, &model.SHUAnggotaRecord{})
 
 	// Seed roles
 	seedRoles(db)
@@ -53,6 +53,11 @@ func main() {
 	shuRepo := repository.NewSHUTahunanRepository(db)
 	shuSvc := service.NewSHUService(shuRepo)
 	shuHdl := handler.NewSHUHandler(shuSvc)
+
+	// SHU Anggota dependencies
+	shuAnggotaRepo := repository.NewSHUAnggotaRepository(db)
+	shuAnggotaSvc := service.NewSHUAnggotaService(shuAnggotaRepo, shuRepo)
+	shuAnggotaHdl := handler.NewSHUAnggotaHandler(shuAnggotaSvc)
 
 	r := gin.Default()
 
@@ -115,12 +120,23 @@ func main() {
 
 		// SHU (Sisa Hasil Usaha) - Admin/Super Admin only
 		protected.POST("/shu/generate", shuHdl.GenerateReport)
+		protected.POST("/shu/generate-auto", shuHdl.GenerateReportWithExpenses)
+		protected.POST("/shu/user/:user_id/generate", shuHdl.GenerateUserSHU)
 		protected.POST("/shu", shuHdl.SaveSHU)
+		protected.POST("/shu/save-auto", shuHdl.SaveSHUWithExpenses)
 		protected.GET("/shu", shuHdl.List)
 		protected.GET("/shu/:id", shuHdl.Detail)
 		protected.PUT("/shu/:id", shuHdl.Update)
 		protected.DELETE("/shu/:id", shuHdl.Delete)
 		protected.GET("/shu/year/:tahun", shuHdl.GetByTahun)
+
+		// SHU Anggota (Individual Member SHU Records)
+		protected.POST("/shu-anggota/user/:user_id/save", shuAnggotaHdl.SaveUserSHU)
+		protected.GET("/shu-anggota/user/:user_id/:tahun", shuAnggotaHdl.GetUserSHU)
+		protected.GET("/shu-anggota/user/:user_id/history", shuAnggotaHdl.GetUserSHUHistory)
+		protected.GET("/shu-anggota", shuAnggotaHdl.List)                   // Admin only
+		protected.GET("/shu-anggota/shu/:shu_id", shuAnggotaHdl.GetBySHUID) // Admin only
+		protected.DELETE("/shu-anggota/:id", shuAnggotaHdl.Delete)          // Admin only
 	}
 
 	r.Run(":8080")

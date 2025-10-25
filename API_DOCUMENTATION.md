@@ -721,7 +721,23 @@ Authorization: Bearer {token}
 
 ---
 
-## SHU (Annual Profit Sharing) Management (Admin/Super Admin Only)
+## SHU (Annual Profit Sharing) Management
+
+The SHU (Sisa Hasil Usaha) system provides three types of report generation:
+
+1. **Full SHU Report** (`/api/shu/generate`) - **Admin/Super Admin Only**: Manual SHU calculation - admin inputs total SHU amount
+2. **Automated SHU Report** (`/api/shu/generate-auto`) - **Admin/Super Admin Only**: Automated SHU calculation - system calculates total SHU from income and expenses  
+3. **Individual User SHU** (`/api/shu/user/{user_id}/generate`) - **All Users**: Generates SHU calculation for a specific user using existing SHU records
+
+**Access Control:**
+- **Admin/Super Admin**: Can access all SHU management features and view any user's SHU data
+- **Regular Users**: Can only view their own SHU data using their own user ID
+
+**Workflow:**
+1. Admin first generates a SHU report using either manual (`/generate`) or automated (`/generate-auto`) method
+2. System saves the SHU record with total SHU amount (status: "draft")
+3. Admin can review and update the SHU record status from "draft" to "final" using `/api/shu/{id}` PUT endpoint
+4. Users can then generate their own SHU calculations which automatically use the saved total SHU amount
 
 ### Generate SHU Report
 ```http
@@ -741,23 +757,163 @@ Content-Type: application/json
   "message": "SHU report generated successfully",
   "data": {
     "tahun": 2024,
-    "total_shu_koperasi": 40000000,
-    "persen_jasa_modal": 25,
-    "persen_jasa_usaha": 30,
-    "total_simpanan_all": 60000000,
-    "total_penjualan_all": 100000000,
+    "total_shu_koperasi": 97141305,
+    "persen_jasa_modal": 30,
+    "persen_jasa_usaha": 70,
+    "total_simpanan_all": 390350000,
+    "total_penjualan_all": 842458574,
     "tanggal_hitung": "2024-01-15T10:00:00Z",
     "detail_anggota": [
       {
         "user_id": 1,
         "email": "user@example.com",
-        "total_simpanan": 3000000,
-        "total_penjualan": 1000000,
-        "jasa_modal": 500000,
-        "jasa_usaha": 120000,
-        "total_shu_anggota": 620000
+        "total_simpanan": 700000,
+        "total_penjualan": 1700000,
+        "jasa_modal": 26098,
+        "jasa_usaha": 68606,
+        "total_shu_anggota": 94704
       }
     ]
+  }
+}
+```
+
+### Generate User SHU Report
+```http
+POST /api/shu/user/{user_id}/generate
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "tahun": 2024
+}
+```
+
+**Description:** Generate SHU calculation for a specific user. The `total_shu_koperasi` value is automatically retrieved from existing SHU records for the specified year. 
+
+**Access Control:**
+- **Users** can only access their own SHU data (user_id must match their own ID)
+- **Admin/Super Admin** can access any user's SHU data
+- Admin/Super Admin must generate the SHU report first using `/api/shu/generate` or `/api/shu/generate-auto` before using this endpoint
+
+**Error Response (if SHU record not found):**
+```json
+{
+  "error": "SHU record not found for the specified year. Please generate SHU report first"
+}
+```
+
+**Error Response (if user tries to access other user's data):**
+```json
+{
+  "error": "forbidden"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "User SHU calculated successfully",
+  "data": {
+    "user_id": 17,
+    "email": "user7@gmail.com",
+    "total_simpanan": 700000,
+    "total_penjualan": 1700000,
+    "jasa_modal": 26098,
+    "jasa_usaha": 68606,
+    "total_shu_anggota": 94704
+  }
+}
+```
+
+### Generate Automated SHU Report
+```http
+POST /api/shu/generate-auto
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "tahun": 2024,
+  "beban_operasional": 15000000,
+  "beban_non_operasional": 5000000,
+  "beban_pajak": 2000000
+}
+```
+
+**Description:** Automated SHU calculation where the system calculates income automatically from loan interest and other sources. Admin only needs to input the expenses.
+
+**Formula Used:** 
+`SHU Total = (Pendapatan Operasional + Pendapatan Non-Operasional) - (Beban Operasional + Beban Non-Operasional + Beban Pajak)`
+
+**Response:**
+```json
+{
+  "message": "Automated SHU report generated successfully",
+  "data": {
+    "tahun": 2024,
+    "pendapatan_operasional": 35000000,
+    "pendapatan_non_operasional": 7000000,
+    "beban_operasional": 15000000,
+    "beban_non_operasional": 5000000,
+    "beban_pajak": 2000000,
+    "total_shu_koperasi": 20000000,
+    "persen_jasa_modal": 30,
+    "persen_jasa_usaha": 70,
+    "total_simpanan_all": 390350000,
+    "total_penjualan_all": 842458574,
+    "tanggal_hitung": "2024-01-15T10:00:00Z",
+    "detail_anggota": [
+      {
+        "user_id": 1,
+        "email": "user@example.com",
+        "total_simpanan": 700000,
+        "total_penjualan": 1700000,
+        "jasa_modal": 26754,
+        "jasa_usaha": 70819,
+        "total_shu_anggota": 97573
+      }
+    ]
+  }
+}
+```
+
+### Save Automated SHU Record
+```http
+POST /api/shu/save-auto
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "tahun": 2024,
+  "pendapatan_operasional": 35000000,
+  "pendapatan_non_operasional": 7000000,
+  "beban_operasional": 15000000,
+  "beban_non_operasional": 5000000,
+  "beban_pajak": 2000000,
+  "total_shu": 20000000,
+  "status": "draft"
+}
+```
+
+**Description:** Save the automated SHU calculation with detailed income and expense breakdown.
+
+**Valid statuses:** `draft`, `final`
+
+**Response:**
+```json
+{
+  "message": "Automated SHU record saved successfully",
+  "data": {
+    "id": 1,
+    "tahun": 2024,
+    "pendapatan_operasional": 35000000,
+    "pendapatan_non_operasional": 7000000,
+    "beban_operasional": 15000000,
+    "beban_non_operasional": 5000000,
+    "beban_pajak": 2000000,
+    "total_shu": 20000000,
+    "tanggal_hitung": "2024-01-15T10:00:00Z",
+    "status": "draft"
   }
 }
 ```
@@ -810,6 +966,23 @@ Content-Type: application/json
 }
 ```
 
+**Description:** Update an existing SHU record. Common use case is updating status from "draft" to "final" once the SHU calculation is approved.
+
+**Valid statuses:** `draft`, `final`
+
+**Response:**
+```json
+{
+  "data": {
+    "id": 1,
+    "tahun": 2024,
+    "total_shu": 42000000,
+    "status": "final",
+    "tanggal_hitung": "2024-01-15T10:00:00Z"
+  }
+}
+```
+
 ### Delete SHU Record
 ```http
 DELETE /api/shu/{id}
@@ -820,16 +993,48 @@ Authorization: Bearer {token}
 
 ## SHU Calculation Formulas
 
-The system implements the exact cooperative SHU calculation formulas:
+The system implements two types of SHU calculation methods:
+
+### 1. Manual SHU Calculation
+Admin inputs the total SHU amount directly, and the system distributes it among members.
+
+### 2. Automated SHU Calculation  
+System calculates the total SHU automatically based on income and expenses:
+
+```
+SHU Total = (Pendapatan Operasional + Pendapatan Non-Operasional) - (Beban Operasional + Beban Non-Operasional + Beban Pajak)
+```
+
+**Components:**
+- **Pendapatan Operasional**: Automatically calculated from loan interest and other operational income
+- **Pendapatan Non-Operasional**: Automatically calculated from investments and other non-operational income  
+- **Beban Operasional**: Input by admin (operational expenses)
+- **Beban Non-Operasional**: Input by admin (non-operational expenses)
+- **Beban Pajak**: Input by admin (tax expenses)
+
+### Member Distribution Formulas (Both Methods)
+
+**Step 1: Calculate SHU for Members**
+```
+SHU untuk Anggota = 50% × Total SHU Koperasi
+```
+
+**Step 2: Allocate Member SHU**
+```
+Alokasi Jasa Modal = 30% × SHU untuk Anggota
+Alokasi Jasa Usaha = 70% × SHU untuk Anggota
+```
+
+**Step 3: Calculate Individual Member SHU**
 
 ### Jasa Modal Anggota (JMA)
 ```
-JMA = (Simpanan anggota / Total simpanan koperasi) × 25% × Total SHU Koperasi
+JMA = (Simpanan anggota / Total simpanan koperasi) × Alokasi Jasa Modal
 ```
 
 ### Jasa Usaha Anggota (JUA)  
 ```
-JUA = (Penjualan anggota / Total penjualan koperasi) × 30% × Total SHU Koperasi
+JUA = (Pinjaman anggota / Total pinjaman koperasi) × Alokasi Jasa Usaha
 ```
 
 ### Total SHU Anggota
@@ -837,17 +1042,254 @@ JUA = (Penjualan anggota / Total penjualan koperasi) × 30% × Total SHU Koperas
 SHU Anggota = JMA + JUA
 ```
 
-**Example Calculation:**
-- SHU Koperasi: Rp40,000,000
-- Total Simpanan: Rp60,000,000  
-- Total Penjualan: Rp100,000,000
-- Simpanan Anggota: Rp3,000,000
-- Penjualan Anggota: Rp1,000,000
+**Example Calculation (Pak Abdul):**
+- SHU Total: Rp97,141,305
+- SHU untuk Anggota: 50% × Rp97,141,305 = Rp48,570,652
+- Alokasi Jasa Modal: 30% × Rp48,570,652 = Rp14,571,196
+- Alokasi Jasa Usaha: 70% × Rp48,570,652 = Rp33,999,456
+- Total Simpanan: Rp390,350,000
+- Total Pinjaman: Rp842,458,574
+- Simpanan Pak Abdul: Rp700,000
+- Pinjaman Pak Abdul: Rp1,700,000
 
 **Result:**
-- JMA: (3,000,000 / 60,000,000) × 25% × 40,000,000 = Rp500,000
-- JUA: (1,000,000 / 100,000,000) × 30% × 40,000,000 = Rp120,000
-- **Total SHU Anggota: Rp620,000**
+- JMA: (700,000 / 390,350,000) × 14,571,196 = Rp26,098
+- JUA: (1,700,000 / 842,458,574) × 33,999,456 = Rp68,606
+- **Total SHU Anggota: Rp94,704**
+
+---
+
+## Complete SHU Management Workflow Example
+
+**Scenario:** Admin needs to calculate and finalize SHU for year 2024
+
+**Step 1:** Generate SHU Report (Automated)
+```http
+POST /api/shu/generate-auto
+{
+  "tahun": 2024,
+  "beban_operasional": 15000000,
+  "beban_non_operasional": 5000000,
+  "beban_pajak": 2000000
+}
+```
+*System calculates total SHU = Rp20,000,000*
+
+**Step 2:** Save SHU Record
+```http
+POST /api/shu/save-auto
+{
+  "tahun": 2024,
+  "pendapatan_operasional": 35000000,
+  "pendapatan_non_operasional": 7000000,
+  "beban_operasional": 15000000,
+  "beban_non_operasional": 5000000,
+  "beban_pajak": 2000000,
+  "total_shu": 20000000,
+  "status": "draft"
+}
+```
+*SHU record saved with status "draft"*
+
+**Step 3:** Review and Finalize
+```http
+PUT /api/shu/1
+{
+  "status": "final"
+}
+```
+*Status updated from "draft" to "final"*
+
+**Step 4:** Generate Individual Member SHU
+
+*Admin can access any user's SHU:*
+```http
+POST /api/shu/user/17/generate
+{
+  "tahun": 2024
+}
+```
+
+*Regular user can access their own SHU (if their ID is 17):*
+```http
+POST /api/shu/user/17/generate
+{
+  "tahun": 2024
+}
+```
+*Uses saved total SHU (Rp20,000,000) automatically*
+
+**Step 5:** Save Individual Member SHU (Optional)
+
+*Users can save their calculated SHU:*
+```http
+POST /api/shu-anggota/user/17/save
+{
+  "tahun": 2024
+}
+```
+*Saves the calculated SHU data to shu_anggota table*
+
+---
+
+## SHU Anggota (Individual Member SHU Records) Management
+
+### Save User SHU
+```http
+POST /api/shu-anggota/user/{user_id}/save
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "tahun": 2024
+}
+```
+
+**Description:** Save the calculated SHU for a specific user to the database. This calculates and permanently stores the user's SHU breakdown.
+
+**Access Control:**
+- **Users** can save their own SHU data (user_id must match their own ID)
+- **Admin/Super Admin** can save any user's SHU data
+
+**Response:**
+```json
+{
+  "message": "User SHU saved successfully",
+  "data": {
+    "id_shu_anggota": 1,
+    "id_shu": 5,
+    "id_anggota": 17,
+    "jumlah_modal": 26098,
+    "jumlah_usaha": 68606,
+    "shu_diterima": 94704,
+    "created_at": "2024-01-15T10:00:00Z",
+    "updated_at": "2024-01-15T10:00:00Z"
+  }
+}
+```
+
+### Get User SHU by Year
+```http
+GET /api/shu-anggota/user/{user_id}/{tahun}
+Authorization: Bearer {token}
+
+# Example
+GET /api/shu-anggota/user/17/2024
+```
+
+**Description:** Retrieve saved SHU data for a specific user and year.
+
+**Access Control:**
+- **Users** can access their own saved SHU data
+- **Admin/Super Admin** can access any user's saved SHU data
+
+**Response:**
+```json
+{
+  "data": {
+    "id_shu_anggota": 1,
+    "id_shu": 5,
+    "id_anggota": 17,
+    "jumlah_modal": 26098,
+    "jumlah_usaha": 68606,
+    "shu_diterima": 94704,
+    "created_at": "2024-01-15T10:00:00Z",
+    "updated_at": "2024-01-15T10:00:00Z",
+    "shu": {
+      "id_shu": 5,
+      "tahun": 2024,
+      "total_shu": 20000000,
+      "status": "final"
+    },
+    "user": {
+      "id": 17,
+      "email": "user@example.com",
+      "name": "John Doe"
+    }
+  }
+}
+```
+
+### Get User SHU History
+```http
+GET /api/shu-anggota/user/{user_id}/history
+Authorization: Bearer {token}
+
+# Example
+GET /api/shu-anggota/user/17/history
+```
+
+**Description:** Retrieve all saved SHU history for a specific user across all years.
+
+**Access Control:**
+- **Users** can access their own SHU history
+- **Admin/Super Admin** can access any user's SHU history
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id_shu_anggota": 1,
+      "id_shu": 5,
+      "id_anggota": 17,
+      "jumlah_modal": 26098,
+      "jumlah_usaha": 68606,
+      "shu_diterima": 94704,
+      "created_at": "2024-01-15T10:00:00Z",
+      "shu": {
+        "tahun": 2024,
+        "total_shu": 20000000,
+        "status": "final"
+      }
+    },
+    {
+      "id_shu_anggota": 2,
+      "id_shu": 3,
+      "id_anggota": 17,
+      "jumlah_modal": 45000,
+      "jumlah_usaha": 85000,
+      "shu_diterima": 130000,
+      "created_at": "2023-01-15T10:00:00Z",
+      "shu": {
+        "tahun": 2023,
+        "total_shu": 25000000,
+        "status": "final"
+      }
+    }
+  ]
+}
+```
+
+### List All SHU Anggota Records (Admin Only)
+```http
+GET /api/shu-anggota
+Authorization: Bearer {token}
+```
+
+**Description:** Retrieve all saved SHU records for all users (Admin/Super Admin only).
+
+### Get SHU Records by SHU ID (Admin Only)
+```http
+GET /api/shu-anggota/shu/{shu_id}
+Authorization: Bearer {token}
+
+# Example
+GET /api/shu-anggota/shu/5
+```
+
+**Description:** Retrieve all user SHU records for a specific SHU year (Admin/Super Admin only).
+
+### Delete SHU Anggota Record (Admin Only)
+```http
+DELETE /api/shu-anggota/{id}
+Authorization: Bearer {token}
+
+# Example
+DELETE /api/shu-anggota/1
+```
+
+**Description:** Delete a saved SHU record (Admin/Super Admin only).
 
 ---
 
