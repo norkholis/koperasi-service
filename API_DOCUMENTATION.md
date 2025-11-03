@@ -96,6 +96,59 @@ Authorization: Bearer {token}
 }
 ```
 
+### Change Password
+```http
+POST /api/change-password
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "current_password": "oldpassword123",
+  "new_password": "newpassword123",
+  "confirm_password": "newpassword123"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Password changed successfully"
+}
+```
+
+**Error Response (400):**
+```json
+{
+  "error": "Current password is incorrect"
+}
+```
+
+### Forgot Password
+```http
+POST /api/forgot-password
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "new_password": "newpassword123",
+  "confirm_password": "newpassword123"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Password reset successfully"
+}
+```
+
+**Error Response (400):**
+```json
+{
+  "error": "Password confirmation does not match"
+}
+```
+
 ---
 
 ## User Management

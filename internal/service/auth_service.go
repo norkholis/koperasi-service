@@ -64,3 +64,44 @@ func GenerateToken(userID uint, jwtSecret string) (string, error) {
 func (s *AuthService) GetUserWithRole(id uint) (*model.User, error) {
 	return s.repo.FindByIDWithRole(id)
 }
+
+// ChangePassword changes user's password after verifying current password
+func (s *AuthService) ChangePassword(userID uint, currentPassword, newPassword string) error {
+	user, err := s.repo.FindByID(userID)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	// Verify current password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(currentPassword)); err != nil {
+		return errors.New("current password is incorrect")
+	}
+
+	// Hash new password
+	hashed, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	// Update password
+	user.Password = string(hashed)
+	return s.repo.Update(user)
+}
+
+// ResetPassword resets user's password (for forgot password functionality)
+func (s *AuthService) ResetPassword(email, newPassword string) error {
+	user, err := s.repo.FindByEmail(email)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	// Hash new password
+	hashed, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	// Update password
+	user.Password = string(hashed)
+	return s.repo.Update(user)
+}

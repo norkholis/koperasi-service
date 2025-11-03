@@ -94,3 +94,71 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, response)
 }
+
+// ChangePassword handles password change requests
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	userID := c.GetUint("userID") // from JWT middleware
+
+	var input struct {
+		CurrentPassword string `json:"current_password" binding:"required,min=6"`
+		NewPassword     string `json:"new_password" binding:"required,min=6"`
+		ConfirmPassword string `json:"confirm_password" binding:"required,min=6"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, utils.ResponseError(err.Error()))
+		return
+	}
+
+	// Validate password confirmation
+	if input.NewPassword != input.ConfirmPassword {
+		c.JSON(http.StatusBadRequest, utils.ResponseError("new password and confirm password do not match"))
+		return
+	}
+
+	// Change password
+	if err := h.service.ChangePassword(userID, input.CurrentPassword, input.NewPassword); err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "user not found" {
+			status = http.StatusNotFound
+		} else if err.Error() == "current password is incorrect" {
+			status = http.StatusBadRequest
+		}
+		c.JSON(status, utils.ResponseError(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.ResponseSuccess("Password changed successfully"))
+}
+
+// ForgotPassword handles password reset requests
+func (h *AuthHandler) ForgotPassword(c *gin.Context) {
+	var input struct {
+		Email           string `json:"email" binding:"required,email"`
+		NewPassword     string `json:"new_password" binding:"required,min=6"`
+		ConfirmPassword string `json:"confirm_password" binding:"required,min=6"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, utils.ResponseError(err.Error()))
+		return
+	}
+
+	// Validate password confirmation
+	if input.NewPassword != input.ConfirmPassword {
+		c.JSON(http.StatusBadRequest, utils.ResponseError("new password and confirm password do not match"))
+		return
+	}
+
+	// Reset password
+	if err := h.service.ResetPassword(input.Email, input.NewPassword); err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "user not found" {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, utils.ResponseError(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.ResponseSuccess("Password reset successfully"))
+}

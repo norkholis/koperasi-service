@@ -75,6 +75,7 @@ func main() {
 	// Public
 	r.POST("/api/register", authHandler.Register)
 	r.POST("/api/login", authHandler.Login)
+	r.POST("/api/forgot-password", authHandler.ForgotPassword)
 
 	// Simpanan dependencies
 	simpananSvc := service.NewSimpananService(simpananRepo)
@@ -85,6 +86,7 @@ func main() {
 	protected.Use(middleware.AuthMiddleware(cfg, userRepo))
 	{
 		protected.GET("/me", authHandler.Me)
+		protected.POST("/change-password", authHandler.ChangePassword)
 		// Simpanan (Wallet) Management
 		protected.GET("/simpanan/wallets", simpananHdl.GetWallets)                          // Get user wallets (with optional user_id param for admin)
 		protected.GET("/simpanan/wallets/all", simpananHdl.GetAllWallets)                   // Get all wallets (admin only)
