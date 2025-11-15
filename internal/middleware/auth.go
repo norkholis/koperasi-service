@@ -27,8 +27,16 @@ func AuthMiddleware(cfg *config.Config, userRepo *repository.UserRepository) gin
 		}
 
 		claims := token.Claims.(jwt.MapClaims)
-		userID := uint(claims["user_id"].(float64))
-		c.Set("userID", userID)
+
+		userIDFloat, ok := claims["user_id"].(float64)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user_id in token"})
+			c.Abort()
+			return
+		}
+
+		userID := uint(userIDFloat)
+		c.Set("user_id", userID)
 
 		// load user role
 		if user, err := userRepo.FindByIDWithRole(userID); err == nil {

@@ -74,7 +74,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 }
 
 func (h *AuthHandler) Me(c *gin.Context) {
-	userID := c.GetUint("userID") // dari middleware JWT
+	userID := c.GetUint("user_id") // dari middleware JWT
 	user, err := h.service.GetUserWithRole(userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, utils.ResponseError("user not found"))
@@ -97,7 +97,7 @@ func (h *AuthHandler) Me(c *gin.Context) {
 
 // ChangePassword handles password change requests
 func (h *AuthHandler) ChangePassword(c *gin.Context) {
-	userID := c.GetUint("userID") // from JWT middleware
+	userID := c.GetUint("user_id") // from JWT middleware
 
 	var input struct {
 		CurrentPassword string `json:"current_password" binding:"required,min=6"`

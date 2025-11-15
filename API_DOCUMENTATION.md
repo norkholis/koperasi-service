@@ -524,6 +524,126 @@ Authorization: Bearer {token}
 
 ---
 
+## Bunga Options (Interest Rate Options) Management
+
+Admin-configurable interest rate options that users can select when creating loans. This allows administrators to maintain control over available interest rates.
+
+### Create Bunga Option
+```http
+POST /api/bunga-options
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "nama": "Bunga Rendah",
+  "persen": 1.5,
+  "deskripsi": "Bunga khusus untuk member lama"
+}
+```
+
+**Access Control:** Admin and Super Admin only
+
+**Response:**
+```json
+{
+  "message": "Bunga option created successfully",
+  "data": {
+    "id": 1,
+    "nama": "Bunga Rendah",
+    "persen": 1.5,
+    "deskripsi": "Bunga khusus untuk member lama",
+    "is_active": true,
+    "created_by": 1,
+    "created_at": "2025-11-03T10:00:00Z"
+  }
+}
+```
+
+### List Bunga Options
+```http
+GET /api/bunga-options
+Authorization: Bearer {token}
+```
+
+**Query Parameters:**
+- `active=true`: Only return active options (useful for loan creation forms)
+
+**Response:**
+```json
+{
+  "message": "Bunga options retrieved successfully",
+  "data": [
+    {
+      "id": 1,
+      "nama": "Bunga Rendah",
+      "persen": 1.5,
+      "deskripsi": "Bunga khusus untuk member lama",
+      "is_active": true,
+      "created_by": 1,
+      "created_by_user": {
+        "id": 1,
+        "name": "Admin User",
+        "email": "admin@example.com"
+      }
+    },
+    {
+      "id": 2,
+      "nama": "Bunga Standar",
+      "persen": 2.5,
+      "deskripsi": "Bunga standar untuk semua member",
+      "is_active": true,
+      "created_by": 1
+    }
+  ]
+}
+```
+
+### Get Bunga Option Detail
+```http
+GET /api/bunga-options/{id}
+Authorization: Bearer {token}
+```
+
+### Update Bunga Option
+```http
+PUT /api/bunga-options/{id}
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "nama": "Bunga Rendah Updated",
+  "persen": 1.8,
+  "deskripsi": "Updated description"
+}
+```
+
+**Access Control:** Admin and Super Admin only
+
+### Delete Bunga Option
+```http
+DELETE /api/bunga-options/{id}
+Authorization: Bearer {token}
+```
+
+**Access Control:** Admin and Super Admin only
+
+### Activate/Deactivate Bunga Option
+```http
+PUT /api/bunga-options/{id}/status
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "is_active": false
+}
+```
+
+**Access Control:** Admin and Super Admin only
+
+**Note:** Deactivating an option prevents it from being selected for new loans, but existing loans that reference this option remain unaffected.
+
+---
+
 ## Pinjaman (Loan) Management
 
 ### Create Pinjaman
@@ -534,16 +654,29 @@ Content-Type: application/json
 
 {
   "jumlah_pinjaman": 5000000,
-  "bunga_persen": 2.5,
+  "bunga_option_id": 1,
   "lama_bulan": 12,
   "jumlah_angsuran": 450000,
-  "user_id": 1
+  "user_id": 1,
+  "no_rekening_pencairan": "1234567890",
+  "bank_name": "Bank BCA"
 }
 ```
+
+**Required fields:**
+- `jumlah_pinjaman`: Loan amount
+- `bunga_option_id`: ID of the selected interest rate option (from `/api/bunga-options?active=true`)
+- `lama_bulan`: Loan duration in months  
+- `jumlah_angsuran`: Monthly installment amount
+- `user_id`: Borrower's user ID
+- `no_rekening_pencairan`: Account number for loan disbursement
+- `bank_name`: Bank name for disbursement
 
 **Optional fields:**
 - `kode_pinjaman`: Auto-generated if not provided
 - `status`: Defaults to "proses"
+
+**Note:** The `bunga_persen` field is automatically filled from the selected `bunga_option_id` for historical record purposes.
 
 ### List Pinjaman
 ```http
@@ -674,9 +807,20 @@ Content-Type: application/json
   "pinjaman_id": 1,
   "pokok": 400000,
   "bunga": 50000,
-  "denda": 0
+  "denda": 0,
+  "image_bukti_transfer": "/uploads/angsuran/bukti_transfer_123.jpg",
+  "no_rekening": "9876543210",
+  "bank_name": "Bank Mandiri"
 }
 ```
+
+**Required fields:**
+- `pinjaman_id`: ID of the loan being paid
+- `pokok`: Principal amount
+- `bunga`: Interest amount
+- `image_bukti_transfer`: Path/URL to the transfer receipt image
+- `no_rekening`: Account number used for payment
+- `bank_name`: Bank name used for payment
 
 **Auto-generated fields:**
 - `angsuran_ke`: Automatically incremented based on existing payments for the loan
@@ -685,6 +829,7 @@ Content-Type: application/json
 **Optional fields:**
 - `angsuran_ke`: Can be manually specified if needed (otherwise auto-generated)
 - `user_id`: Defaults to loan owner
+- `denda`: Penalty amount (defaults to 0)
 - `denda`: Defaults to 0
 
 ### List Angsuran
@@ -1652,3 +1797,345 @@ The system automatically creates database tables and seeds default roles:
      -H "Content-Type: application/json" \
      -d '{"tahun":2024,"total_shu_koperasi":40000000}'
    ```
+
+---
+
+## Audit Trail & Reporting System
+
+**Access Control:** All audit trail and reporting endpoints are restricted to **Admin and Super Admin only**.
+
+### Audit Trail Management
+
+The audit trail system automatically tracks all system changes and user actions for comprehensive monitoring and compliance.
+
+### List Audit Trails
+```http
+GET /api/audit-trails
+Authorization: Bearer {token}
+```
+
+**Query Parameters:**
+- `user_id`: Filter by user ID
+- `action`: Filter by action (CREATE, UPDATE, DELETE, LOGIN, etc.)
+- `entity_table`: Filter by affected table
+- `start_date`: Start date (YYYY-MM-DD)
+- `end_date`: End date (YYYY-MM-DD)
+- `ip_address`: Filter by IP address
+- `limit`: Number of results (default: 50)
+- `offset`: Pagination offset
+
+**Response:**
+```json
+{
+  "message": "Audit trails retrieved successfully",
+  "data": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "action": "CREATE",
+      "entity_table": "pinjaman",
+      "record_id": 5,
+      "old_values": null,
+      "new_values": "{\"jumlah_pinjaman\":5000000,\"bunga_option_id\":1}",
+      "ip_address": "192.168.1.100",
+      "user_agent": "Mozilla/5.0...",
+      "description": "User created new loan",
+      "timestamp": "2025-11-03T10:30:00Z",
+      "user": {
+        "id": 1,
+        "name": "John Doe",
+        "email": "john@example.com"
+      }
+    }
+  ],
+  "total": 150,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+### Get Audit Trail Detail
+```http
+GET /api/audit-trails/{id}
+Authorization: Bearer {token}
+```
+
+### Get User Activity
+```http
+GET /api/audit-trails/user/{user_id}
+Authorization: Bearer {token}
+```
+
+**Query Parameters:**
+- `start_date`: Start date (YYYY-MM-DD)
+- `end_date`: End date (YYYY-MM-DD)
+
+**Response:**
+```json
+{
+  "message": "User activity retrieved successfully",
+  "data": [
+    {
+      "id": 1,
+      "action": "LOGIN",
+      "entity_table": "users",
+      "timestamp": "2025-11-03T08:00:00Z",
+      "ip_address": "192.168.1.100",
+      "description": "User logged in"
+    }
+  ],
+  "user_id": 5,
+  "start_date": "2025-11-01",
+  "end_date": "2025-11-03",
+  "count": 25
+}
+```
+
+### Get System Activity
+```http
+GET /api/audit-trails/system
+Authorization: Bearer {token}
+```
+
+**Query Parameters:**
+- `start_date`: Start date (YYYY-MM-DD, default: last week)
+- `end_date`: End date (YYYY-MM-DD, default: now)
+
+### Get Audit Summary
+```http
+GET /api/audit-trails/summary
+Authorization: Bearer {token}
+```
+
+**Query Parameters:**
+- `start_date`: Start date (YYYY-MM-DD, default: last month)
+- `end_date`: End date (YYYY-MM-DD, default: now)
+
+**Response:**
+```json
+{
+  "message": "Audit summary retrieved successfully",
+  "data": {
+    "period_start": "2025-10-03T00:00:00Z",
+    "period_end": "2025-11-03T23:59:59Z",
+    "total_entries": 1250,
+    "action_summary": {
+      "CREATE": 340,
+      "UPDATE": 280,
+      "DELETE": 45,
+      "LOGIN": 485,
+      "VERIFY": 100
+    },
+    "table_summary": {
+      "users": 125,
+      "pinjaman": 89,
+      "angsuran": 234,
+      "simpanan": 156
+    },
+    "active_users": 45,
+    "unique_ips": 28,
+    "top_actions": [
+      {"item": "LOGIN", "count": 485},
+      {"item": "CREATE", "count": 340}
+    ],
+    "top_tables": [
+      {"item": "angsuran", "count": 234},
+      {"item": "simpanan", "count": 156}
+    ],
+    "top_ips": [
+      {"item": "192.168.1.100", "count": 125},
+      {"item": "192.168.1.101", "count": 89}
+    ]
+  }
+}
+```
+
+---
+
+## Transaction History & Financial Reporting
+
+Comprehensive transaction tracking and financial reporting system for detailed business analysis.
+
+### List Transaction History
+```http
+GET /api/transactions
+Authorization: Bearer {token}
+```
+
+**Query Parameters:**
+- `user_id`: Filter by user ID
+- `transaction_type`: Filter by type (SIMPANAN, PINJAMAN, ANGSURAN, SHU)
+- `status`: Filter by status (PENDING, COMPLETED, CANCELLED, VERIFIED)
+- `start_date`: Start date (YYYY-MM-DD)
+- `end_date`: End date (YYYY-MM-DD)
+- `min_amount`: Minimum transaction amount
+- `max_amount`: Maximum transaction amount
+- `limit`: Number of results (default: 50)
+- `offset`: Pagination offset
+
+**Response:**
+```json
+{
+  "message": "Transaction history retrieved successfully",
+  "data": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "transaction_type": "PINJAMAN",
+      "reference_table": "pinjaman",
+      "reference_id": 5,
+      "amount": 5000000,
+      "balance_before": 1000000,
+      "balance_after": 6000000,
+      "status": "COMPLETED",
+      "transaction_date": "2025-11-03T10:30:00Z",
+      "verified_by": 2,
+      "verified_at": "2025-11-03T11:00:00Z",
+      "description": "Loan disbursement",
+      "metadata": "{\"loan_id\":5,\"bank\":\"BCA\"}",
+      "user": {
+        "id": 1,
+        "name": "John Doe",
+        "email": "john@example.com"
+      },
+      "verified_by_user": {
+        "id": 2,
+        "name": "Admin User",
+        "email": "admin@example.com"
+      }
+    }
+  ],
+  "total": 500,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+### Get Transaction Detail
+```http
+GET /api/transactions/{id}
+Authorization: Bearer {token}
+```
+
+### Get User Transactions
+```http
+GET /api/transactions/user/{user_id}
+Authorization: Bearer {token}
+```
+
+**Query Parameters:**
+- `start_date`: Start date (YYYY-MM-DD, default: last 3 months)
+- `end_date`: End date (YYYY-MM-DD, default: now)
+
+### Get Financial Summary
+```http
+GET /api/transactions/summary
+Authorization: Bearer {token}
+```
+
+**Query Parameters:**
+- `start_date`: Start date (YYYY-MM-DD, default: last year)
+- `end_date`: End date (YYYY-MM-DD, default: now)
+
+**Response:**
+```json
+{
+  "message": "Financial summary retrieved successfully",
+  "data": {
+    "total_simpanan": 45000000,
+    "total_pinjaman": 125000000,
+    "total_angsuran": 35000000,
+    "total_shu": 8000000,
+    "total_transactions": 1250,
+    "period_start": "2024-11-03T00:00:00Z",
+    "period_end": "2025-11-03T23:59:59Z"
+  }
+}
+```
+
+### Generate Financial Report
+```http
+POST /api/reports/financial
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "report_type": "MONTHLY",
+  "start_date": "2025-10-01",
+  "end_date": "2025-10-31"
+}
+```
+
+**Report Types:**
+- `DAILY`: Daily financial report
+- `WEEKLY`: Weekly financial report  
+- `MONTHLY`: Monthly financial report
+- `YEARLY`: Annual financial report
+- `CUSTOM`: Custom date range report
+
+**Response:**
+```json
+{
+  "message": "Financial report generated successfully",
+  "data": {
+    "report_type": "MONTHLY",
+    "period_start": "2025-10-01T00:00:00Z",
+    "period_end": "2025-10-31T23:59:59Z",
+    "generated_at": "2025-11-03T15:30:00Z",
+    "generated_by": 1,
+    "summary": {
+      "total_simpanan": 12000000,
+      "total_pinjaman": 25000000,
+      "total_angsuran": 8000000,
+      "total_shu": 2000000,
+      "total_transactions": 234
+    },
+    "transaction_count": 234,
+    "type_breakdown": {
+      "SIMPANAN": 12000000,
+      "PINJAMAN": 25000000,
+      "ANGSURAN": 8000000,
+      "SHU": 2000000
+    },
+    "status_breakdown": {
+      "COMPLETED": 180,
+      "PENDING": 35,
+      "VERIFIED": 19
+    },
+    "monthly_breakdown": {
+      "2025-10": 47000000
+    }
+  }
+}
+```
+
+---
+
+## Reporting Security & Access Control
+
+### Access Restrictions
+- **Audit Trails**: Admin and Super Admin only
+- **Transaction History**: Admin and Super Admin only
+- **Financial Reports**: Admin and Super Admin only
+- **System Analytics**: Super Admin only
+
+### Automatic Audit Logging
+The system automatically creates audit trail entries for:
+- User authentication (login/logout)
+- Data creation, updates, and deletions
+- Administrative actions
+- Permission changes
+- Financial transactions
+- System configuration changes
+
+### Data Retention
+- **Audit Trails**: Retained indefinitely for compliance
+- **Transaction History**: Retained indefinitely for financial records
+- **System Reports**: Archived after 2 years
+
+### Monitoring Capabilities
+- Real-time user activity tracking
+- Financial transaction monitoring
+- System performance analytics
+- Security event logging
+- Compliance reporting

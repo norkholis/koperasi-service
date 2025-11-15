@@ -59,6 +59,18 @@ func main() {
 	shuAnggotaSvc := service.NewSHUAnggotaService(shuAnggotaRepo, shuRepo)
 	shuAnggotaHdl := handler.NewSHUAnggotaHandler(shuAnggotaSvc)
 
+	// Bunga Option dependencies
+	bungaOptionRepo := repository.NewBungaOptionRepository(db)
+	bungaOptionSvc := service.NewBungaOptionService(bungaOptionRepo, userRepo)
+	bungaOptionHdl := handler.NewBungaOptionHandler(bungaOptionSvc)
+
+	// Audit Trail and Transaction History dependencies
+	auditRepo := repository.NewAuditTrailRepository(db)
+	transactionRepo := repository.NewTransactionHistoryRepository(db)
+	auditSvc := service.NewAuditTrailService(auditRepo, userRepo)
+	transactionSvc := service.NewTransactionHistoryService(transactionRepo, userRepo)
+	auditHdl := handler.NewAuditTrailHandler(auditSvc, transactionSvc)
+
 	r := gin.Default()
 
 	// CORS middleware
@@ -139,6 +151,28 @@ func main() {
 		protected.GET("/shu-anggota", shuAnggotaHdl.List)                   // Admin only
 		protected.GET("/shu-anggota/shu/:shu_id", shuAnggotaHdl.GetBySHUID) // Admin only
 		protected.DELETE("/shu-anggota/:id", shuAnggotaHdl.Delete)          // Admin only
+
+		// Bunga Options (Interest Rate Options) - Admin only
+		protected.POST("/bunga-options", bungaOptionHdl.Create)              // Create new interest rate option
+		protected.GET("/bunga-options", bungaOptionHdl.List)                 // List all options (?active=true for active only)
+		protected.GET("/bunga-options/:id", bungaOptionHdl.Detail)           // Get specific option
+		protected.PUT("/bunga-options/:id", bungaOptionHdl.Update)           // Update option
+		protected.DELETE("/bunga-options/:id", bungaOptionHdl.Delete)        // Delete option
+		protected.PUT("/bunga-options/:id/status", bungaOptionHdl.SetActive) // Activate/deactivate option
+
+		// Audit Trail - Admin/Super Admin only
+		protected.GET("/audit-trails", auditHdl.GetAuditTrails)                // List audit trails with filters
+		protected.GET("/audit-trails/:id", auditHdl.GetAuditTrailDetail)       // Get specific audit trail
+		protected.GET("/audit-trails/user/:user_id", auditHdl.GetUserActivity) // Get user activity
+		protected.GET("/audit-trails/system", auditHdl.GetSystemActivity)      // Get system-wide activity
+		protected.GET("/audit-trails/summary", auditHdl.GetAuditSummary)       // Get audit summary/analytics
+
+		// Transaction History - Admin/Super Admin only
+		protected.GET("/transactions", auditHdl.GetTransactionHistory)             // List transaction history with filters
+		protected.GET("/transactions/:id", auditHdl.GetTransactionDetail)          // Get specific transaction
+		protected.GET("/transactions/user/:user_id", auditHdl.GetUserTransactions) // Get user transactions
+		protected.GET("/transactions/summary", auditHdl.GetFinancialSummary)       // Get financial summary
+		protected.POST("/reports/financial", auditHdl.GenerateFinancialReport)     // Generate comprehensive financial reports
 	}
 
 	r.Run(":8080")

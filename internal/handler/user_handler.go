@@ -21,7 +21,7 @@ func NewUserHandler(s *service.UserService) *UserHandler { return &UserHandler{s
 
 // List users (super_admin can see all, admin can see their registered users)
 func (h *UserHandler) List(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("user_id")
 	role := c.GetString("role")
 	users, err := h.service.ListUsers(userID, role)
 	if err != nil {
@@ -51,43 +51,42 @@ func (h *UserHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": resp})
 }
 
-// Detail returns a single user respecting access control.
+// Detail gets user details
 func (h *UserHandler) Detail(c *gin.Context) {
+	reqID := c.GetUint("user_id")
 	role := c.GetString("role")
-	reqID := c.GetUint("userID")
-	idParam := c.Param("id")
-	id64, err := strconv.ParseUint(idParam, 10, 64)
+
+	id, _ := strconv.Atoi(c.Param("id"))
+	user, err := h.service.GetUser(reqID, role, uint(id))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, utils.ResponseError("invalid id"))
-		return
-	}
-	u, err := h.service.GetUser(reqID, role, uint(id64))
-	if err != nil {
-		status := http.StatusNotFound
+		status := http.StatusInternalServerError
 		if err.Error() == "forbidden" {
 			status = http.StatusForbidden
+		} else if err.Error() == "user not found" {
+			status = http.StatusNotFound
 		}
 		c.JSON(status, utils.ResponseError(err.Error()))
 		return
 	}
+
 	response := gin.H{
-		"id":           u.ID,
-		"email":        u.Email,
-		"name":         u.Name,
-		"address":      u.Address,
-		"phone_number": u.PhoneNumber,
-		"nik":          u.NIK,
-		"role_id":      u.RoleID,
+		"id":           user.ID,
+		"email":        user.Email,
+		"name":         user.Name,
+		"address":      user.Address,
+		"phone_number": user.PhoneNumber,
+		"nik":          user.NIK,
+		"role_id":      user.RoleID,
 	}
-	if u.AdminID != nil {
-		response["admin_id"] = *u.AdminID
+	if user.AdminID != nil {
+		response["admin_id"] = *user.AdminID
 	}
 	c.JSON(http.StatusOK, gin.H{"data": response})
 }
 
 // Create user (super_admin and admin)
 func (h *UserHandler) Create(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("user_id")
 	role := c.GetString("role")
 	var input struct {
 		Email       string `json:"email" binding:"required,email"`
@@ -137,7 +136,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 // Update user (self or any if super_admin).
 func (h *UserHandler) Update(c *gin.Context) {
 	role := c.GetString("role")
-	reqID := c.GetUint("userID")
+	reqID := c.GetUint("user_id")
 	idParam := c.Param("id")
 	id64, err := strconv.ParseUint(idParam, 10, 64)
 	if err != nil {
@@ -184,7 +183,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 // Delete user (self or any if super_admin).
 func (h *UserHandler) Delete(c *gin.Context) {
 	role := c.GetString("role")
-	reqID := c.GetUint("userID")
+	reqID := c.GetUint("user_id")
 	idParam := c.Param("id")
 	id64, err := strconv.ParseUint(idParam, 10, 64)
 	if err != nil {
