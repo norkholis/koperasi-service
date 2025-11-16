@@ -4,6 +4,7 @@ import (
 	"errors"
 	"koperasi-service/internal/model"
 	"koperasi-service/internal/repository"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -28,6 +29,14 @@ func (s *AuthService) Register(user *model.User) error {
 
 	// Create user first
 	if err := s.repo.Create(user); err != nil {
+		// Handle specific database constraint violations
+		errorStr := err.Error()
+		if strings.Contains(errorStr, "uni_users_email") || strings.Contains(errorStr, "duplicate key value") && strings.Contains(errorStr, "email") {
+			return errors.New("email already exists")
+		}
+		if strings.Contains(errorStr, "uni_users_nik") || strings.Contains(errorStr, "duplicate key value") && strings.Contains(errorStr, "nik") {
+			return errors.New("NIK already exists")
+		}
 		return err
 	}
 

@@ -18,7 +18,7 @@ type Pinjaman struct {
 	LamaBulan           int          `gorm:"not null" json:"lama_bulan"`
 	JumlahAngsuran      float64      `gorm:"type:decimal(15,2);not null" json:"jumlah_angsuran"`
 	SisaAngsuran        int          `gorm:"not null" json:"sisa_angsuran"`
-	Status              string       `gorm:"type:varchar(20);check:status IN ('proses', 'disetujui', 'lunas', 'macet')" json:"status"`
+	Status              string       `gorm:"type:varchar(20);check:status IN ('proses', 'disetujui', 'ditolak', 'lunas', 'macet')" json:"status"`
 	NoRekeningPencairan string       `gorm:"type:varchar(50)" json:"no_rekening_pencairan"` // Account number for loan disbursement
 	BankName            string       `gorm:"type:varchar(100)" json:"bank_name"`            // Bank name for disbursement
 	User                User         `gorm:"foreignKey:UserID" json:"user,omitempty"`

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"koperasi-service/internal/model"
 	"koperasi-service/internal/repository"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -80,6 +81,17 @@ func (s *UserService) CreateUser(requestorID uint, requestorRole string, u *mode
 
 	// Create user first
 	if err := s.repo.Create(u); err != nil {
+		// Handle specific database constraint violations
+		errorStr := err.Error()
+		if strings.Contains(errorStr, "uni_users_email") || strings.Contains(errorStr, "duplicate key value") && strings.Contains(errorStr, "email") {
+			return errors.New("email already exists")
+		}
+		if strings.Contains(errorStr, "uni_users_nik") || strings.Contains(errorStr, "duplicate key value") && strings.Contains(errorStr, "nik") {
+			return errors.New("NIK already exists")
+		}
+		if strings.Contains(errorStr, "fk_users_admin") || strings.Contains(errorStr, "foreign key constraint") {
+			return errors.New("invalid admin reference")
+		}
 		return err
 	}
 

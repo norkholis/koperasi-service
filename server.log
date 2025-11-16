@@ -69,3 +69,45 @@
 [GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
 Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.
 [GIN-debug] Listening and serving HTTP on :8080
+[2025-11-16T20:52:10+07:00] GET /api/pinjaman 200 16.350125ms
+[GIN] 2025/11/16 - 20:52:10 | 200 |   16.439958ms |             ::1 | GET      "/api/pinjaman"
+[2025-11-16T20:52:46+07:00] GET /api/pinjaman 200 6.33425ms
+[GIN] 2025/11/16 - 20:52:46 | 200 |    6.440334ms |             ::1 | GET      "/api/pinjaman"
+[2025-11-16T20:53:21+07:00] GET /api/me 200 14.8315ms
+[GIN] 2025/11/16 - 20:53:21 | 200 |   15.070584ms |             ::1 | GET      "/api/me"
+[2025-11-16T20:53:21+07:00] GET /api/me 200 3.563167ms
+[GIN] 2025/11/16 - 20:53:21 | 200 |    3.596625ms |             ::1 | GET      "/api/me"
+[2025-11-16T20:53:21+07:00] GET /api/pinjaman?user_id=69 200 2.085125ms
+[GIN] 2025/11/16 - 20:53:21 | 200 |    2.106583ms |             ::1 | GET      "/api/pinjaman?user_id=69"
+[2025-11-16T20:53:21+07:00] GET /api/me 200 32.201625ms
+[GIN] 2025/11/16 - 20:53:21 | 200 |   32.217625ms |             ::1 | GET      "/api/me"
+[2025-11-16T20:53:21+07:00] GET /api/me 200 3.335333ms
+[GIN] 2025/11/16 - 20:53:21 | 200 |    3.361709ms |             ::1 | GET      "/api/me"
+[2025-11-16T20:53:21+07:00] GET /api/bunga-options?active=true 200 6.015083ms
+[GIN] 2025/11/16 - 20:53:21 | 200 |    6.032459ms |             ::1 | GET      "/api/bunga-options?active=true"
+[2025-11-16T20:53:21+07:00] GET /api/pinjaman 200 8.224125ms
+[GIN] 2025/11/16 - 20:53:21 | 200 |    8.249958ms |             ::1 | GET      "/api/pinjaman"
+[2025-11-16T20:53:21+07:00] GET /api/angsuran/pending 200 8.772417ms
+[GIN] 2025/11/16 - 20:53:21 | 200 |    8.807417ms |             ::1 | GET      "/api/angsuran/pending"
+[2025-11-16T20:53:21+07:00] GET /api/bunga-options?active=true 200 4.643208ms
+[GIN] 2025/11/16 - 20:53:21 | 200 |    4.672084ms |             ::1 | GET      "/api/bunga-options?active=true"
+[2025-11-16T20:53:21+07:00] GET /api/me 200 15.5825ms
+[GIN] 2025/11/16 - 20:53:21 | 200 |   15.614583ms |             ::1 | GET      "/api/me"
+[2025-11-16T20:53:53+07:00] GET /api/me 200 7.040875ms
+[GIN] 2025/11/16 - 20:53:53 | 200 |    9.990208ms |             ::1 | GET      "/api/me"
+[2025-11-16T20:53:53+07:00] GET /api/me 200 3.316708ms
+[GIN] 2025/11/16 - 20:53:53 | 200 |    3.345791ms |             ::1 | GET      "/api/me"
+[2025-11-16T20:53:53+07:00] GET /api/pinjaman 200 5.205292ms
+[GIN] 2025/11/16 - 20:53:53 | 200 |    5.243084ms |             ::1 | GET      "/api/pinjaman"
+[2025-11-16T20:53:53+07:00] GET /api/angsuran/pending 200 3.198833ms
+[GIN] 2025/11/16 - 20:53:53 | 200 |    3.226416ms |             ::1 | GET      "/api/angsuran/pending"
+[2025-11-16T20:53:53+07:00] GET /api/bunga-options?active=true 200 2.295083ms
+[GIN] 2025/11/16 - 20:53:53 | 200 |    2.317167ms |             ::1 | GET      "/api/bunga-options?active=true"
+[2025-11-16T20:53:53+07:00] GET /api/me 200 6.047125ms
+[GIN] 2025/11/16 - 20:53:53 | 200 |    6.130167ms |             ::1 | GET      "/api/me"
+[GIN] 2025/11/16 - 20:53:56 | 204 |    6.414833ms |             ::1 | OPTIONS  "/api/pinjaman/7"
+[2025-11-16T20:53:56+07:00] PUT /api/pinjaman/7 403 12.801833ms
+[GIN] 2025/11/16 - 20:53:56 | 403 |   12.826334ms |             ::1 | PUT      "/api/pinjaman/7"
+[GIN] 2025/11/16 - 20:54:01 | 204 |      13.459µs |             ::1 | OPTIONS  "/api/pinjaman/9"
+[2025-11-16T20:54:01+07:00] PUT /api/pinjaman/9 403 6.878125ms
+[GIN] 2025/11/16 - 20:54:01 | 403 |    6.984583ms |             ::1 | PUT      "/api/pinjaman/9"

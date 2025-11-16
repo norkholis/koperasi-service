@@ -10,13 +10,14 @@ import (
 
 // PinjamanService handles business logic for Pinjaman with role constraints
 type PinjamanService struct {
-	repo     *repository.PinjamanRepository
-	userRepo *repository.UserRepository
+	repo            *repository.PinjamanRepository
+	userRepo        *repository.UserRepository
+	bungaOptionRepo repository.BungaOptionRepository
 }
 
 // NewPinjamanService creates a new service instance
-func NewPinjamanService(repo *repository.PinjamanRepository, userRepo *repository.UserRepository) *PinjamanService {
-	return &PinjamanService{repo: repo, userRepo: userRepo}
+func NewPinjamanService(repo *repository.PinjamanRepository, userRepo *repository.UserRepository, bungaOptionRepo repository.BungaOptionRepository) *PinjamanService {
+	return &PinjamanService{repo: repo, userRepo: userRepo, bungaOptionRepo: bungaOptionRepo}
 }
 
 // Create adds a new Pinjaman (members can create for themselves, admins can create for any user)
@@ -24,6 +25,24 @@ func (s *PinjamanService) Create(requestorID uint, requestorRole string, p *mode
 	// Members can only create loans for themselves
 	if requestorRole == "member" && p.UserID != requestorID {
 		return errors.New("forbidden")
+	}
+
+	// If bunga_option_id is provided, get the interest rate from the option
+	if p.BungaOptionID != nil {
+		bungaOption, err := s.bungaOptionRepo.GetByID(*p.BungaOptionID)
+		if err != nil {
+			return errors.New("invalid bunga option")
+		}
+		if !bungaOption.IsActive {
+			return errors.New("bunga option is not active")
+		}
+		// Copy the interest rate for historical record
+		p.BungaPersen = bungaOption.Persen
+	}
+
+	// Validate that BungaPersen is set (either provided directly or copied from option)
+	if p.BungaPersen == 0 {
+		return errors.New("bunga_persen is required")
 	}
 
 	// Generate kode_pinjaman if not provided
@@ -53,8 +72,37 @@ func (s *PinjamanService) List(requestorID uint, requestorRole string) ([]model.
 	}
 
 	if requestorRole == "admin" {
-		// Admin can see loans from users they registered
-		return s.repo.GetByAdminUserID(requestorID)
+		// Admin can see loans from users they registered AND their own loans
+		adminLoans, err := s.repo.GetByAdminUserID(requestorID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Also get admin's own loans
+		ownLoans, err := s.repo.GetAll(requestorID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Combine both lists (avoiding duplicates)
+		allLoans := make([]model.Pinjaman, 0)
+		allLoans = append(allLoans, adminLoans...)
+
+		// Add own loans if not already included
+		for _, ownLoan := range ownLoans {
+			duplicate := false
+			for _, adminLoan := range adminLoans {
+				if adminLoan.ID == ownLoan.ID {
+					duplicate = true
+					break
+				}
+			}
+			if !duplicate {
+				allLoans = append(allLoans, ownLoan)
+			}
+		}
+
+		return allLoans, nil
 	}
 
 	// Members can only see their own loans
@@ -182,6 +230,78 @@ func (s *PinjamanService) Delete(requestorID uint, requestorRole string, id uint
 	}
 
 	return s.repo.Delete(id)
+}
+
+// Approve approves a pinjaman (admin can approve loans from their registered users)
+func (s *PinjamanService) Approve(requestorID uint, requestorRole string, pinjamanID uint, reason string) error {
+	// Get the pinjaman
+	pinjaman, err := s.repo.GetByID(pinjamanID)
+	if err != nil {
+		return errors.New("pinjaman not found")
+	}
+
+	// Check if pinjaman is in "proses" status
+	if pinjaman.Status != "proses" {
+		return errors.New("invalid pinjaman status")
+	}
+
+	// Check permissions
+	if requestorRole == "super_admin" {
+		// Super admin can approve any loan
+	} else if requestorRole == "admin" {
+		// Admin can only approve loans from users they registered
+		user, err := s.userRepo.FindByID(pinjaman.UserID)
+		if err != nil {
+			return err
+		}
+		if user.AdminID == nil || *user.AdminID != requestorID {
+			return errors.New("forbidden")
+		}
+	} else {
+		// Members cannot approve loans
+		return errors.New("forbidden")
+	}
+
+	// Update status to approved
+	pinjaman.Status = "disetujui"
+
+	return s.repo.Update(pinjaman)
+}
+
+// Reject rejects a pinjaman (admin can reject loans from their registered users)
+func (s *PinjamanService) Reject(requestorID uint, requestorRole string, pinjamanID uint, reason string) error {
+	// Get the pinjaman
+	pinjaman, err := s.repo.GetByID(pinjamanID)
+	if err != nil {
+		return errors.New("pinjaman not found")
+	}
+
+	// Check if pinjaman is in "proses" status
+	if pinjaman.Status != "proses" {
+		return errors.New("invalid pinjaman status")
+	}
+
+	// Check permissions
+	if requestorRole == "super_admin" {
+		// Super admin can reject any loan
+	} else if requestorRole == "admin" {
+		// Admin can only reject loans from users they registered
+		user, err := s.userRepo.FindByID(pinjaman.UserID)
+		if err != nil {
+			return err
+		}
+		if user.AdminID == nil || *user.AdminID != requestorID {
+			return errors.New("forbidden")
+		}
+	} else {
+		// Members cannot reject loans
+		return errors.New("forbidden")
+	}
+
+	// Update status to rejected
+	pinjaman.Status = "ditolak"
+
+	return s.repo.Update(pinjaman)
 }
 
 // generateKodePinjaman creates a unique loan code

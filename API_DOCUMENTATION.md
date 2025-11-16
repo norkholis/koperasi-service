@@ -763,7 +763,7 @@ Content-Type: application/json
 - **Admin Users**: Can update loans for users they registered
 - **Super Admin**: Can update any loan
 
-**Valid statuses:** `proses`, `disetujui`, `lunas`, `macet`
+**Valid statuses:** `proses`, `disetujui`, `ditolak`, `lunas`, `macet`
 
 ### Delete Pinjaman
 ```http
@@ -775,6 +775,70 @@ Authorization: Bearer {token}
 - **Regular Users**: Can only delete their own loans
 - **Admin Users**: Can delete loans for users they registered
 - **Super Admin**: Can delete any loan
+
+### Approve Pinjaman
+```http
+PUT /api/pinjaman/{id}/approve
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "alasan": "Pengajuan pinjaman telah diverifikasi dan disetujui sesuai ketentuan"
+}
+```
+
+**Description:** Approve a loan application and change status to "disetujui"
+
+**Request Body:**
+- `alasan` (optional): Reason for approval
+
+**Role-based Access:**
+- **Admin Users**: Can only approve loans from users they registered
+- **Super Admin**: Can approve any loan
+- **Regular Users**: Cannot approve loans
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Pinjaman berhasil disetujui",
+  "data": {
+    // Updated pinjaman object with status "disetujui"
+  }
+}
+```
+
+### Reject Pinjaman
+```http
+PUT /api/pinjaman/{id}/reject
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "alasan": "Dokumen tidak lengkap atau tidak memenuhi syarat"
+}
+```
+
+**Description:** Reject a loan application and change status to "ditolak"
+
+**Request Body:**
+- `alasan` (optional): Reason for rejection
+
+**Role-based Access:**
+- **Admin Users**: Can only reject loans from users they registered
+- **Super Admin**: Can reject any loan
+- **Regular Users**: Cannot reject loans
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Pinjaman berhasil ditolak",
+  "data": {
+    // Updated pinjaman object with status "ditolak"
+  }
+}
+```
 
 ---
 

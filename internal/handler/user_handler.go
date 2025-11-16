@@ -114,6 +114,10 @@ func (h *UserHandler) Create(c *gin.Context) {
 		status := http.StatusInternalServerError
 		if err.Error() == "forbidden" {
 			status = http.StatusForbidden
+		} else if err.Error() == "email already exists" || err.Error() == "NIK already exists" {
+			status = http.StatusConflict
+		} else if err.Error() == "invalid admin reference" {
+			status = http.StatusBadRequest
 		}
 		c.JSON(status, utils.ResponseError(err.Error()))
 		return

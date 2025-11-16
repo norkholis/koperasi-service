@@ -41,8 +41,7 @@ func main() {
 
 	// Pinjaman dependencies
 	pinjamanRepo := repository.NewPinjamanRepository(db)
-	pinjamanSvc := service.NewPinjamanService(pinjamanRepo, userRepo)
-	pinjamanHdl := handler.NewPinjamanHandler(pinjamanSvc)
+	// Note: bungaOptionRepo is created later, so we need to move pinjaman service creation after bunga option repo
 
 	// Angsuran dependencies
 	angsuranRepo := repository.NewAngsuranRepository(db)
@@ -63,6 +62,10 @@ func main() {
 	bungaOptionRepo := repository.NewBungaOptionRepository(db)
 	bungaOptionSvc := service.NewBungaOptionService(bungaOptionRepo, userRepo)
 	bungaOptionHdl := handler.NewBungaOptionHandler(bungaOptionSvc)
+
+	// Pinjaman dependencies (now that bungaOptionRepo is available)
+	pinjamanSvc := service.NewPinjamanService(pinjamanRepo, userRepo, bungaOptionRepo)
+	pinjamanHdl := handler.NewPinjamanHandler(pinjamanSvc)
 
 	// Audit Trail and Transaction History dependencies
 	auditRepo := repository.NewAuditTrailRepository(db)
@@ -122,6 +125,8 @@ func main() {
 		protected.POST("/pinjaman", pinjamanHdl.Create)
 		protected.PUT("/pinjaman/:id", pinjamanHdl.Update)
 		protected.DELETE("/pinjaman/:id", pinjamanHdl.Delete)
+		protected.PUT("/pinjaman/:id/approve", pinjamanHdl.Approve) // Admin can approve loans from their users
+		protected.PUT("/pinjaman/:id/reject", pinjamanHdl.Reject)   // Admin can reject loans from their users
 
 		// Angsuran CRUD
 		protected.GET("/angsuran", angsuranHdl.List)

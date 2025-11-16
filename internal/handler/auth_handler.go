@@ -46,7 +46,11 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	if err := h.service.Register(user); err != nil {
-		c.JSON(http.StatusInternalServerError, utils.ResponseError(err.Error()))
+		status := http.StatusInternalServerError
+		if err.Error() == "email already exists" || err.Error() == "NIK already exists" {
+			status = http.StatusConflict
+		}
+		c.JSON(status, utils.ResponseError(err.Error()))
 		return
 	}
 

@@ -23,21 +23,30 @@ func NewPinjamanHandler(s *service.PinjamanService) *PinjamanHandler {
 
 // Create handles loan creation
 func (h *PinjamanHandler) Create(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("user_id")
 	role := c.GetString("role")
 
 	var input struct {
-		KodePinjaman   string  `json:"kode_pinjaman"`
-		UserID         uint    `json:"user_id"`
-		JumlahPinjaman float64 `json:"jumlah_pinjaman" binding:"required,gt=0"`
-		BungaPersen    float64 `json:"bunga_persen" binding:"required,gte=0"`
-		LamaBulan      int     `json:"lama_bulan" binding:"required,gt=0"`
-		JumlahAngsuran float64 `json:"jumlah_angsuran" binding:"required,gt=0"`
-		Status         string  `json:"status"`
+		KodePinjaman        string  `json:"kode_pinjaman"`
+		UserID              uint    `json:"user_id"`
+		JumlahPinjaman      float64 `json:"jumlah_pinjaman" binding:"required,gt=0"`
+		BungaOptionID       *uint   `json:"bunga_option_id"`              // New: Select from available options
+		BungaPersen         float64 `json:"bunga_persen" binding:"gte=0"` // Optional: Will be auto-filled if bunga_option_id is provided
+		LamaBulan           int     `json:"lama_bulan" binding:"required,gt=0"`
+		JumlahAngsuran      float64 `json:"jumlah_angsuran" binding:"required,gt=0"`
+		Status              string  `json:"status"`
+		NoRekeningPencairan string  `json:"no_rekening_pencairan"` // Account number for disbursement
+		BankName            string  `json:"bank_name"`             // Bank name for disbursement
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, utils.ResponseError(err.Error()))
+		return
+	}
+
+	// Validate that either bunga_option_id or bunga_persen is provided
+	if input.BungaOptionID == nil && input.BungaPersen == 0 {
+		c.JSON(http.StatusBadRequest, utils.ResponseError("either bunga_option_id or bunga_persen must be provided"))
 		return
 	}
 
@@ -47,13 +56,16 @@ func (h *PinjamanHandler) Create(c *gin.Context) {
 	}
 
 	p := &model.Pinjaman{
-		KodePinjaman:   input.KodePinjaman,
-		UserID:         input.UserID,
-		JumlahPinjaman: input.JumlahPinjaman,
-		BungaPersen:    input.BungaPersen,
-		LamaBulan:      input.LamaBulan,
-		JumlahAngsuran: input.JumlahAngsuran,
-		Status:         input.Status,
+		KodePinjaman:        input.KodePinjaman,
+		UserID:              input.UserID,
+		JumlahPinjaman:      input.JumlahPinjaman,
+		BungaOptionID:       input.BungaOptionID,
+		BungaPersen:         input.BungaPersen,
+		LamaBulan:           input.LamaBulan,
+		JumlahAngsuran:      input.JumlahAngsuran,
+		Status:              input.Status,
+		NoRekeningPencairan: input.NoRekeningPencairan,
+		BankName:            input.BankName,
 	}
 
 	if err := h.service.Create(userID, role, p); err != nil {
@@ -109,7 +121,7 @@ func (h *PinjamanHandler) Detail(c *gin.Context) {
 
 // Update modifies an existing loan
 func (h *PinjamanHandler) Update(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("user_id")
 	role := c.GetString("role")
 	idParam := c.Param("id")
 
@@ -135,7 +147,7 @@ func (h *PinjamanHandler) Update(c *gin.Context) {
 
 	// Validate status if provided
 	if input.Status != "" {
-		validStatuses := map[string]bool{"proses": true, "disetujui": true, "lunas": true, "macet": true}
+		validStatuses := map[string]bool{"proses": true, "disetujui": true, "ditolak": true, "lunas": true, "macet": true}
 		if !validStatuses[input.Status] {
 			c.JSON(http.StatusBadRequest, utils.ResponseError("invalid status"))
 			return
@@ -186,4 +198,72 @@ func (h *PinjamanHandler) Delete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, utils.ResponseSuccess("Pinjaman deleted"))
+}
+
+// Approve approves a loan (admin can approve loans from their registered users)
+func (h *PinjamanHandler) Approve(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	role := c.GetString("role")
+	idParam := c.Param("id")
+
+	id64, err := strconv.ParseUint(idParam, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ResponseError("invalid id"))
+		return
+	}
+
+	var input struct {
+		Reason string `json:"reason"` // Optional reason for approval
+	}
+
+	// Parse input (optional)
+	c.ShouldBindJSON(&input)
+
+	if err := h.service.Approve(userID, role, uint(id64), input.Reason); err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "forbidden" {
+			status = http.StatusForbidden
+		} else if err.Error() == "pinjaman not found" || err.Error() == "invalid pinjaman status" {
+			status = http.StatusBadRequest
+		}
+		c.JSON(status, utils.ResponseError(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.ResponseSuccess("Pinjaman approved successfully"))
+}
+
+// Reject rejects a loan (admin can reject loans from their registered users)
+func (h *PinjamanHandler) Reject(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	role := c.GetString("role")
+	idParam := c.Param("id")
+
+	id64, err := strconv.ParseUint(idParam, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ResponseError("invalid id"))
+		return
+	}
+
+	var input struct {
+		Reason string `json:"reason" binding:"required"` // Required reason for rejection
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, utils.ResponseError(err.Error()))
+		return
+	}
+
+	if err := h.service.Reject(userID, role, uint(id64), input.Reason); err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "forbidden" {
+			status = http.StatusForbidden
+		} else if err.Error() == "pinjaman not found" || err.Error() == "invalid pinjaman status" {
+			status = http.StatusBadRequest
+		}
+		c.JSON(status, utils.ResponseError(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.ResponseSuccess("Pinjaman rejected successfully"))
 }
