@@ -23,7 +23,7 @@ func NewAngsuranHandler(s *service.AngsuranService) *AngsuranHandler {
 
 // Create handles installment payment creation
 func (h *AngsuranHandler) Create(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("user_id")
 	role := c.GetString("role")
 
 	var input struct {
@@ -34,6 +34,10 @@ func (h *AngsuranHandler) Create(c *gin.Context) {
 		Denda      float64 `json:"denda"`
 		TotalBayar float64 `json:"total_bayar"`
 		UserID     uint    `json:"user_id"`
+		// New payment proof fields
+		ImageBuktiTransfer string `json:"image_bukti_transfer" binding:"required"`
+		NoRekening         string `json:"no_rekening" binding:"required"`
+		BankName           string `json:"bank_name" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -42,13 +46,16 @@ func (h *AngsuranHandler) Create(c *gin.Context) {
 	}
 
 	a := &model.Angsuran{
-		PinjamanID: input.PinjamanID,
-		AngsuranKe: input.AngsuranKe,
-		Pokok:      input.Pokok,
-		Bunga:      input.Bunga,
-		Denda:      input.Denda,
-		TotalBayar: input.TotalBayar,
-		UserID:     input.UserID,
+		PinjamanID:         input.PinjamanID,
+		AngsuranKe:         input.AngsuranKe,
+		Pokok:              input.Pokok,
+		Bunga:              input.Bunga,
+		Denda:              input.Denda,
+		TotalBayar:         input.TotalBayar,
+		UserID:             input.UserID,
+		ImageBuktiTransfer: input.ImageBuktiTransfer,
+		NoRekening:         input.NoRekening,
+		BankName:           input.BankName,
 	}
 
 	if err := h.service.Create(userID, role, a); err != nil {
@@ -67,7 +74,7 @@ func (h *AngsuranHandler) Create(c *gin.Context) {
 
 // List returns filtered list of installments based on role and optional pinjaman filter
 func (h *AngsuranHandler) List(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("user_id")
 	role := c.GetString("role")
 
 	// Optional pinjaman_id filter
@@ -89,7 +96,7 @@ func (h *AngsuranHandler) List(c *gin.Context) {
 
 // Detail returns a single installment with access control
 func (h *AngsuranHandler) Detail(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("user_id")
 	role := c.GetString("role")
 	idParam := c.Param("id")
 
@@ -114,7 +121,7 @@ func (h *AngsuranHandler) Detail(c *gin.Context) {
 
 // Update modifies an existing installment
 func (h *AngsuranHandler) Update(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("user_id")
 	role := c.GetString("role")
 	idParam := c.Param("id")
 
@@ -169,7 +176,7 @@ func (h *AngsuranHandler) Update(c *gin.Context) {
 
 // Delete removes an installment
 func (h *AngsuranHandler) Delete(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("user_id")
 	role := c.GetString("role")
 	idParam := c.Param("id")
 
@@ -193,7 +200,7 @@ func (h *AngsuranHandler) Delete(c *gin.Context) {
 
 // Verify allows admin to verify payment and change status
 func (h *AngsuranHandler) Verify(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("user_id")
 	role := c.GetString("role")
 	idParam := c.Param("id")
 
@@ -232,7 +239,7 @@ func (h *AngsuranHandler) Verify(c *gin.Context) {
 
 // GetPendingPayments returns installments awaiting verification (admin only)
 func (h *AngsuranHandler) GetPendingPayments(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("user_id")
 	role := c.GetString("role")
 
 	pending, err := h.service.GetPendingPayments(userID, role)

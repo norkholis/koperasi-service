@@ -880,21 +880,33 @@ Content-Type: application/json
 
 **Required fields:**
 - `pinjaman_id`: ID of the loan being paid
-- `pokok`: Principal amount
-- `bunga`: Interest amount
-- `image_bukti_transfer`: Path/URL to the transfer receipt image
-- `no_rekening`: Account number used for payment
-- `bank_name`: Bank name used for payment
+- `pokok`: Principal amount (required, > 0)
+- `bunga`: Interest amount (required, >= 0)
+- `image_bukti_transfer`: Path/URL to the transfer receipt image (required)
+- `no_rekening`: Account number used for payment (required)
+- `bank_name`: Bank name used for payment (required)
 
 **Auto-generated fields:**
 - `angsuran_ke`: Automatically incremented based on existing payments for the loan
 - `total_bayar`: Auto-calculated if not provided (pokok + bunga + denda)
+- `status`: Defaults to "proses" (pending verification)
 
 **Optional fields:**
 - `angsuran_ke`: Can be manually specified if needed (otherwise auto-generated)
-- `user_id`: Defaults to loan owner
+- `user_id`: Defaults to loan owner if not specified
 - `denda`: Penalty amount (defaults to 0)
-- `denda`: Defaults to 0
+
+**Role-based Access:**
+- **Regular Users**: Can only create payments for their own loans
+- **Admin Users**: Can create payments for loans from users they registered OR their own loans
+- **Super Admin**: Can create payments for any loan
+
+**Response:**
+```json
+{
+  "message": "Angsuran created"
+}
+```
 
 ### List Angsuran
 ```http
@@ -965,14 +977,58 @@ Content-Type: application/json
 
 **Valid verification statuses:** `verified`, `kurang`, `lebih`
 
-**Note:** When status is `verified`, the system automatically:
-- Decrements `sisa_angsuran` in the related pinjaman
-- Changes pinjaman status to `lunas` when all installments are paid
+**Role-based Access:**
+- **Admin Users**: Can verify payments for loans from users they registered
+- **Super Admin**: Can verify any payment
+- **Regular Users**: Cannot verify payments
 
+**Important Automated Actions:** When status is set to `verified`, the system automatically:
+- Decrements `sisa_angsuran` in the related pinjaman by 1
+- Changes pinjaman status to `lunas` when `sisa_angsuran` reaches 0
+- This ensures accurate tracking of loan completion progress
+
+**Response:**
+```json
+{
+  "message": "Payment verification updated",
+  "data": {
+    // Updated angsuran object with new status
+  }
+}
+```
 ### Get Pending Payments (Admin/Super Admin Only)
 ```http
 GET /api/angsuran/pending
 Authorization: Bearer {token}
+```
+
+**Description:** Retrieve all angsuran payments with status "proses" awaiting verification.
+
+**Role-based Access:**
+- **Admin Users**: Can see pending payments for users they registered
+- **Super Admin**: Can see all pending payments
+- **Regular Users**: Forbidden
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "ID": 5,
+      "PinjamanID": 2,
+      "AngsuranKe": 1,
+      "TanggalBayar": "2024-01-15T10:00:00Z",
+      "Pokok": 400000,
+      "Bunga": 50000,
+      "Denda": 0,
+      "TotalBayar": 450000,
+      "Status": "proses",
+      "ImageBuktiTransfer": "/uploads/proof_123.jpg",
+      "NoRekening": "9876543210",
+      "BankName": "Bank Mandiri"
+    }
+  ]
+}
 ```
 
 ### Delete Angsuran

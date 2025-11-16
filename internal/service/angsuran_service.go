@@ -31,9 +31,24 @@ func (s *AngsuranService) Create(requestorID uint, requestorRole string, a *mode
 		return errors.New("pinjaman not found")
 	}
 
-	// Check access: super_admin can create for any, others only for their own loans
-	if requestorRole != "super_admin" && pinjaman.UserID != requestorID {
-		return errors.New("forbidden")
+	// Check access based on role
+	if requestorRole == "super_admin" {
+		// Super admin can create angsuran for any loan
+	} else if requestorRole == "admin" {
+		// Admin can create angsuran for loans from users they registered
+		user, err := s.userRepo.FindByID(pinjaman.UserID)
+		if err != nil {
+			return errors.New("user not found")
+		}
+		// Admin can create for users they registered OR for their own loans
+		if user.AdminID == nil || (*user.AdminID != requestorID && pinjaman.UserID != requestorID) {
+			return errors.New("forbidden")
+		}
+	} else {
+		// Regular users can only create angsuran for their own loans
+		if pinjaman.UserID != requestorID {
+			return errors.New("forbidden")
+		}
 	}
 
 	// Set default values
