@@ -515,3 +515,40 @@ func (h *AuditTrailHandler) GenerateFinancialReport(c *gin.Context) {
 		"data":    report,
 	})
 }
+
+// GenerateFinancialReportGET handles generating financial reports via GET request with query parameters
+func (h *AuditTrailHandler) GenerateFinancialReportGET(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, utils.ResponseError("User not authenticated"))
+		return
+	}
+
+	// Get parameters from query string
+	reportType := c.DefaultQuery("report_type", "MONTHLY")
+	startDateStr := c.DefaultQuery("start_date", time.Now().AddDate(0, -1, 0).Format("2006-01-02"))
+	endDateStr := c.DefaultQuery("end_date", time.Now().Format("2006-01-02"))
+
+	startDate, err := time.Parse("2006-01-02", startDateStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ResponseError("Invalid start date format. Use YYYY-MM-DD"))
+		return
+	}
+
+	endDate, err := time.Parse("2006-01-02", endDateStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ResponseError("Invalid end date format. Use YYYY-MM-DD"))
+		return
+	}
+
+	report, err := h.transactionService.GenerateFinancialReport(userID.(uint), reportType, startDate, endDate)
+	if err != nil {
+		c.JSON(http.StatusForbidden, utils.ResponseError(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Financial report generated successfully",
+		"data":    report,
+	})
+}

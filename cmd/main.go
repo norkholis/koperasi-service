@@ -178,6 +178,7 @@ func main() {
 		protected.GET("/transactions/user/:user_id", auditHdl.GetUserTransactions) // Get user transactions
 		protected.GET("/transactions/summary", auditHdl.GetFinancialSummary)       // Get financial summary
 		protected.POST("/reports/financial", auditHdl.GenerateFinancialReport)     // Generate comprehensive financial reports
+		protected.GET("/reports/financial", auditHdl.GenerateFinancialReportGET)   // Generate financial reports (GET for testing)
 	}
 
 	r.Run(":8080")

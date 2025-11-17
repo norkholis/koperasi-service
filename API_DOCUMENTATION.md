@@ -2188,12 +2188,23 @@ Content-Type: application/json
 }
 ```
 
+**Alternative GET Method** (for easier testing):
+```http
+GET /api/reports/financial?report_type=MONTHLY&start_date=2025-10-01&end_date=2025-10-31
+Authorization: Bearer {token}
+```
+
 **Report Types:**
 - `DAILY`: Daily financial report
 - `WEEKLY`: Weekly financial report  
 - `MONTHLY`: Monthly financial report
 - `YEARLY`: Annual financial report
 - `CUSTOM`: Custom date range report
+
+**Query Parameters (GET method):**
+- `report_type`: Default is "MONTHLY"
+- `start_date`: Default is 1 month ago (YYYY-MM-DD format)
+- `end_date`: Default is today (YYYY-MM-DD format)
 
 **Response:**
 ```json
