@@ -23,7 +23,7 @@ func main() {
 	}
 
 	// Auto migrate
-	db.AutoMigrate(&model.User{}, &model.Role{}, &model.Simpanan{}, &model.SimpananTransaction{}, &model.Pinjaman{}, &model.Angsuran{}, &model.SHUTahunan{}, &model.SHUAnggotaRecord{})
+	db.AutoMigrate(&model.User{}, &model.Role{}, &model.Simpanan{}, &model.SimpananTransaction{}, &model.Pinjaman{}, &model.Angsuran{}, &model.SHUTahunan{}, &model.SHUAnggotaRecord{}, &model.BungaOption{}, &model.AuditTrail{}, &model.TransactionHistory{})
 
 	// Seed roles
 	seedRoles(db)

@@ -2072,7 +2072,9 @@ Authorization: Bearer {token}
 
 ---
 
-## Transaction History & Financial Reporting
+## Transaction History & Financial Reporting (Beta)
+
+**⚠️ Note: These endpoints are currently under development and may not be fully functional. The core koperasi functionality (users, loans, savings, SHU) is stable and ready for use.**
 
 Comprehensive transaction tracking and financial reporting system for detailed business analysis.
 
