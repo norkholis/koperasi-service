@@ -13,11 +13,12 @@ type PinjamanService struct {
 	repo            *repository.PinjamanRepository
 	userRepo        *repository.UserRepository
 	bungaOptionRepo repository.BungaOptionRepository
+	transactionSvc  TransactionHistoryService
 }
 
 // NewPinjamanService creates a new service instance
-func NewPinjamanService(repo *repository.PinjamanRepository, userRepo *repository.UserRepository, bungaOptionRepo repository.BungaOptionRepository) *PinjamanService {
-	return &PinjamanService{repo: repo, userRepo: userRepo, bungaOptionRepo: bungaOptionRepo}
+func NewPinjamanService(repo *repository.PinjamanRepository, userRepo *repository.UserRepository, bungaOptionRepo repository.BungaOptionRepository, transactionSvc TransactionHistoryService) *PinjamanService {
+	return &PinjamanService{repo: repo, userRepo: userRepo, bungaOptionRepo: bungaOptionRepo, transactionSvc: transactionSvc}
 }
 
 // Create adds a new Pinjaman (members can create for themselves, admins can create for any user)
@@ -61,7 +62,29 @@ func (s *PinjamanService) Create(requestorID uint, requestorRole string, p *mode
 		p.SisaAngsuran = p.LamaBulan
 	}
 
-	return s.repo.Create(p)
+	err := s.repo.Create(p)
+	if err != nil {
+		return err
+	}
+
+	// Record transaction history
+	if s.transactionSvc != nil {
+		metadata := fmt.Sprintf(`{"kode_pinjaman":"%s","lama_bulan":%d,"bunga_persen":%.2f}`, p.KodePinjaman, p.LamaBulan, p.BungaPersen)
+		s.transactionSvc.CreateTransactionRecord(
+			p.UserID,
+			"PINJAMAN",
+			"pinjaman",
+			p.ID,
+			p.JumlahPinjaman,
+			0,
+			p.JumlahPinjaman,
+			"PENDING",
+			fmt.Sprintf("Loan application created: %s", p.KodePinjaman),
+			metadata,
+		)
+	}
+
+	return nil
 }
 
 // List returns pinjaman list filtered by user unless role allows viewing all

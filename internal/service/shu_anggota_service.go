@@ -2,21 +2,24 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"koperasi-service/internal/model"
 	"koperasi-service/internal/repository"
 )
 
 // SHUAnggotaService handles business logic for SHU Anggota operations
 type SHUAnggotaService struct {
-	repo    *repository.SHUAnggotaRepository
-	shuRepo *repository.SHUTahunanRepository
+	repo           *repository.SHUAnggotaRepository
+	shuRepo        *repository.SHUTahunanRepository
+	transactionSvc TransactionHistoryService
 }
 
 // NewSHUAnggotaService creates a new service instance
-func NewSHUAnggotaService(repo *repository.SHUAnggotaRepository, shuRepo *repository.SHUTahunanRepository) *SHUAnggotaService {
+func NewSHUAnggotaService(repo *repository.SHUAnggotaRepository, shuRepo *repository.SHUTahunanRepository, transactionSvc TransactionHistoryService) *SHUAnggotaService {
 	return &SHUAnggotaService{
-		repo:    repo,
-		shuRepo: shuRepo,
+		repo:           repo,
+		shuRepo:        shuRepo,
+		transactionSvc: transactionSvc,
 	}
 }
 
@@ -63,6 +66,23 @@ func (s *SHUAnggotaService) SaveUserSHU(requestorRole string, requestorUserID ui
 
 	if err := s.repo.Create(shuAnggotaRecord); err != nil {
 		return nil, err
+	}
+
+	// Record transaction history for SHU distribution
+	if s.transactionSvc != nil {
+		metadata := fmt.Sprintf(`{"tahun":%d,"jasa_modal":%.2f,"jasa_usaha":%.2f,"total_shu":%.2f}`, tahun, shuAnggota.JasaModal, shuAnggota.JasaUsaha, shuAnggota.TotalSHUAnggota)
+		s.transactionSvc.CreateTransactionRecord(
+			targetUserID,
+			"SHU",
+			"shu_anggota_records",
+			shuAnggotaRecord.ID,
+			shuAnggota.TotalSHUAnggota,
+			0,
+			shuAnggota.TotalSHUAnggota,
+			"COMPLETED",
+			fmt.Sprintf("SHU distribution for year %d: %.2f", tahun, shuAnggota.TotalSHUAnggota),
+			metadata,
+		)
 	}
 
 	return shuAnggotaRecord, nil

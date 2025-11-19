@@ -166,3 +166,31 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 
 	c.JSON(http.StatusOK, utils.ResponseSuccess("Password reset successfully"))
 }
+
+// UpdateProfile updates the current user's profile information
+func (h *AuthHandler) UpdateProfile(c *gin.Context) {
+	userID := c.GetUint("user_id")
+
+	var input struct {
+		Name        string `json:"name"`
+		Address     string `json:"address"`
+		PhoneNumber string `json:"phone_number"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, utils.ResponseError(err.Error()))
+		return
+	}
+
+	// Update profile using auth service
+	if err := h.service.UpdateProfile(userID, input.Name, input.Address, input.PhoneNumber); err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "user not found" {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, utils.ResponseError(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.ResponseSuccess("Profile updated successfully"))
+}

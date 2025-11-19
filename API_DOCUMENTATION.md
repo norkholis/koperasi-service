@@ -96,7 +96,48 @@ Authorization: Bearer {token}
 }
 ```
 
+### Update Profile
+```http
+PUT /api/me/profile
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "name": "Updated Name",
+  "address": "New Address",
+  "phone_number": "081234567890",
+  "nik": "1234567890123456"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Profile updated successfully"
+}
+```
+
+**Error Response (400):**
+```json
+{
+  "error": "Invalid input data"
+}
+```
+
 ### Change Password
+```http
+PUT /api/me/password
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "current_password": "oldpassword123",
+  "new_password": "newpassword123",
+  "confirm_password": "newpassword123"
+}
+```
+
+**Alternative endpoint (legacy):**
 ```http
 POST /api/change-password
 Authorization: Bearer {token}
@@ -107,6 +148,9 @@ Content-Type: application/json
   "new_password": "newpassword123",
   "confirm_password": "newpassword123"
 }
+```
+
+**Note:** Both `PUT /api/me/password` (RESTful) and `POST /api/change-password` (legacy) endpoints are supported.
 ```
 
 **Response:**

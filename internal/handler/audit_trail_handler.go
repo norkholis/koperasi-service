@@ -296,7 +296,9 @@ func (h *AuditTrailHandler) GetTransactionHistory(c *gin.Context) {
 
 	if endDateStr := c.Query("end_date"); endDateStr != "" {
 		if endDate, err := time.Parse("2006-01-02", endDateStr); err == nil {
-			filters.EndDate = &endDate
+			// Set end date to end of day (23:59:59.999) to include all transactions on that date
+			endOfDay := endDate.Add(24*time.Hour - time.Nanosecond)
+			filters.EndDate = &endOfDay
 		}
 	}
 

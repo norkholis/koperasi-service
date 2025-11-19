@@ -97,20 +97,42 @@ func (s *AuthService) ChangePassword(userID uint, currentPassword, newPassword s
 	return s.repo.Update(user)
 }
 
-// ResetPassword resets user's password (for forgot password functionality)
+// UpdateProfile updates user's profile information (name, address, phone)
+func (s *AuthService) UpdateProfile(userID uint, name, address, phoneNumber string) error {
+	user, err := s.repo.FindByID(userID)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	// Update only the provided fields
+	if name != "" {
+		user.Name = name
+	}
+	if address != "" {
+		user.Address = address
+	}
+	if phoneNumber != "" {
+		user.PhoneNumber = phoneNumber
+	}
+
+	return s.repo.Update(user)
+}
+
+// ResetPassword resets a user's password by email
 func (s *AuthService) ResetPassword(email, newPassword string) error {
+	// Find user by email
 	user, err := s.repo.FindByEmail(email)
 	if err != nil {
 		return errors.New("user not found")
 	}
 
 	// Hash new password
-	hashed, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
 
 	// Update password
-	user.Password = string(hashed)
+	user.Password = string(hashedPassword)
 	return s.repo.Update(user)
 }

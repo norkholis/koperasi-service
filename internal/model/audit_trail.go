@@ -39,12 +39,12 @@ type TransactionHistory struct {
 	BalanceAfter    float64    `gorm:"type:decimal(15,2)" json:"balance_after"`                 // Balance after transaction
 	Status          string     `gorm:"type:varchar(20);not null;index" json:"status"`           // PENDING, COMPLETED, CANCELLED, VERIFIED
 	TransactionDate time.Time  `gorm:"default:CURRENT_TIMESTAMP;index" json:"transaction_date"`
-	VerifiedBy      uint       `gorm:"index" json:"verified_by"`     // Admin who verified (if applicable)
+	VerifiedBy      *uint      `gorm:"index" json:"verified_by"`     // Admin who verified (if applicable)
 	VerifiedAt      *time.Time `json:"verified_at"`                  // When it was verified
 	Description     string     `gorm:"type:text" json:"description"` // Transaction description
 	Metadata        string     `gorm:"type:text" json:"metadata"`    // Additional JSON metadata
 	User            User       `gorm:"foreignKey:UserID" json:"user,omitempty"`
-	VerifiedByUser  User       `gorm:"foreignKey:VerifiedBy" json:"verified_by_user,omitempty"`
+	VerifiedByUser  *User      `gorm:"foreignKey:VerifiedBy" json:"verified_by_user,omitempty"`
 }
 
 // TableName specifies the table name for TransactionHistory model

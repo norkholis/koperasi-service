@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"koperasi-service/internal/model"
 	"koperasi-service/internal/repository"
 	"time"
@@ -11,12 +12,13 @@ import (
 
 // SimpananService contains business logic for Simpanan wallets.
 type SimpananService struct {
-	repo *repository.SimpananRepository
+	repo           *repository.SimpananRepository
+	transactionSvc TransactionHistoryService
 }
 
 // NewSimpananService creates a new service instance.
-func NewSimpananService(repo *repository.SimpananRepository) *SimpananService {
-	return &SimpananService{repo: repo}
+func NewSimpananService(repo *repository.SimpananRepository, transactionSvc TransactionHistoryService) *SimpananService {
+	return &SimpananService{repo: repo, transactionSvc: transactionSvc}
 }
 
 // InitializeUserWallets creates the three wallet types for a new user
@@ -76,7 +78,29 @@ func (s *SimpananService) TopupWallet(userID uint, walletType string, amount flo
 		Status:      "pending",
 	}
 
-	return s.repo.CreateTransaction(transaction)
+	err = s.repo.CreateTransaction(transaction)
+	if err != nil {
+		return err
+	}
+
+	// Record transaction history
+	if s.transactionSvc != nil {
+		metadata := fmt.Sprintf(`{"wallet_type":"%s","wallet_id":%d,"transaction_id":%d}`, walletType, wallet.ID, transaction.ID)
+		s.transactionSvc.CreateTransactionRecord(
+			userID,
+			"SIMPANAN",
+			"simpanan_transactions",
+			transaction.ID,
+			amount,
+			wallet.Balance,
+			wallet.Balance,
+			"PENDING",
+			fmt.Sprintf("Wallet top-up requested: %s (%.2f)", walletType, amount),
+			metadata,
+		)
+	}
+
+	return nil
 }
 
 // VerifyTransaction verifies and processes a pending transaction (admin only)
@@ -105,9 +129,27 @@ func (s *SimpananService) VerifyTransaction(transactionID uint, adminID uint, ad
 			return err
 		}
 
+		balanceBefore := wallet.Balance
 		wallet.Balance += transaction.Amount
 		if err := s.repo.UpdateWallet(wallet); err != nil {
 			return err
+		}
+
+		// Record transaction history for verification
+		if s.transactionSvc != nil {
+			metadata := fmt.Sprintf(`{"wallet_id":%d,"transaction_id":%d,"approved":true}`, wallet.ID, transactionID)
+			s.transactionSvc.CreateTransactionRecord(
+				wallet.UserID,
+				"SIMPANAN",
+				"simpanan_transactions",
+				transactionID,
+				transaction.Amount,
+				balanceBefore,
+				wallet.Balance,
+				"VERIFIED",
+				fmt.Sprintf("Wallet top-up verified: %.2f", transaction.Amount),
+				metadata,
+			)
 		}
 	} else {
 		transaction.Status = "rejected"
@@ -147,12 +189,35 @@ func (s *SimpananService) AdjustWalletBalance(walletID uint, amount float64, des
 	}
 
 	// Update wallet balance immediately
+	balanceBefore := wallet.Balance
 	wallet.Balance += amount
 	if wallet.Balance < 0 {
 		return errors.New("insufficient balance")
 	}
 
-	return s.repo.UpdateWallet(wallet)
+	err = s.repo.UpdateWallet(wallet)
+	if err != nil {
+		return err
+	}
+
+	// Record transaction history for adjustment
+	if s.transactionSvc != nil {
+		metadata := fmt.Sprintf(`{"wallet_id":%d,"transaction_id":%d,"adjustment":true}`, walletID, transaction.ID)
+		s.transactionSvc.CreateTransactionRecord(
+			wallet.UserID,
+			"SIMPANAN",
+			"simpanan_transactions",
+			transaction.ID,
+			amount,
+			balanceBefore,
+			wallet.Balance,
+			"VERIFIED",
+			fmt.Sprintf("Wallet balance adjustment: %.2f", amount),
+			metadata,
+		)
+	}
+
+	return nil
 }
 
 // GetWalletTransactions returns transaction history for a wallet

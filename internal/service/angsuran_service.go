@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"koperasi-service/internal/model"
 	"koperasi-service/internal/repository"
 	"time"
@@ -9,17 +10,19 @@ import (
 
 // AngsuranService handles business logic for Angsuran with role constraints
 type AngsuranService struct {
-	repo         *repository.AngsuranRepository
-	pinjamanRepo *repository.PinjamanRepository
-	userRepo     *repository.UserRepository
+	repo           *repository.AngsuranRepository
+	pinjamanRepo   *repository.PinjamanRepository
+	userRepo       *repository.UserRepository
+	transactionSvc TransactionHistoryService
 }
 
 // NewAngsuranService creates a new service instance
-func NewAngsuranService(repo *repository.AngsuranRepository, pinjamanRepo *repository.PinjamanRepository, userRepo *repository.UserRepository) *AngsuranService {
+func NewAngsuranService(repo *repository.AngsuranRepository, pinjamanRepo *repository.PinjamanRepository, userRepo *repository.UserRepository, transactionSvc TransactionHistoryService) *AngsuranService {
 	return &AngsuranService{
-		repo:         repo,
-		pinjamanRepo: pinjamanRepo,
-		userRepo:     userRepo,
+		repo:           repo,
+		pinjamanRepo:   pinjamanRepo,
+		userRepo:       userRepo,
+		transactionSvc: transactionSvc,
 	}
 }
 
@@ -76,7 +79,29 @@ func (s *AngsuranService) Create(requestorID uint, requestorRole string, a *mode
 		a.TotalBayar = a.Pokok + a.Bunga + a.Denda
 	}
 
-	return s.repo.Create(a)
+	err = s.repo.Create(a)
+	if err != nil {
+		return err
+	}
+
+	// Record transaction history
+	if s.transactionSvc != nil {
+		metadata := fmt.Sprintf(`{"pinjaman_id":%d,"angsuran_ke":%d,"pokok":%.2f,"bunga":%.2f,"denda":%.2f}`, a.PinjamanID, a.AngsuranKe, a.Pokok, a.Bunga, a.Denda)
+		s.transactionSvc.CreateTransactionRecord(
+			a.UserID,
+			"ANGSURAN",
+			"angsuran",
+			a.ID,
+			a.TotalBayar,
+			0,
+			0,
+			"PENDING",
+			fmt.Sprintf("Payment created for loan %s (installment %d)", pinjaman.KodePinjaman, a.AngsuranKe),
+			metadata,
+		)
+	}
+
+	return nil
 }
 
 // List returns angsuran list filtered by access rules
@@ -229,6 +254,23 @@ func (s *AngsuranService) VerifyPayment(requestorID uint, requestorRole string, 
 				pinjaman.Status = "lunas"
 			}
 			s.pinjamanRepo.Update(pinjaman)
+
+			// Record transaction when payment is verified
+			if s.transactionSvc != nil {
+				metadata := fmt.Sprintf(`{"pinjaman_id":%d,"angsuran_ke":%d,"payment_verified":true}`, existing.PinjamanID, existing.AngsuranKe)
+				s.transactionSvc.CreateTransactionRecord(
+					existing.UserID,
+					"ANGSURAN",
+					"angsuran",
+					existing.ID,
+					existing.TotalBayar,
+					0,
+					0,
+					"VERIFIED",
+					fmt.Sprintf("Payment verified for loan %s (installment %d)", pinjaman.KodePinjaman, existing.AngsuranKe),
+					metadata,
+				)
+			}
 		}
 	}
 
