@@ -9,6 +9,7 @@ type Simpanan struct {
 	Type        string  // "pokok", "wajib", "sukarela"
 	Balance     float64 // Current balance in the wallet
 	Description string
+	User        User `gorm:"foreignKey:UserID" json:"user,omitempty"`
 }
 
 // SimpananTransaction represents top-up or adjustment transactions

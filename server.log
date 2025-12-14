@@ -71,17 +71,23 @@
 [GIN-debug] GET    /api/audit-trails/user/:user_id --> koperasi-service/internal/handler.(*AuditTrailHandler).GetUserActivity-fm (6 handlers)
 [GIN-debug] GET    /api/audit-trails/system  --> koperasi-service/internal/handler.(*AuditTrailHandler).GetSystemActivity-fm (6 handlers)
 [GIN-debug] GET    /api/audit-trails/summary --> koperasi-service/internal/handler.(*AuditTrailHandler).GetAuditSummary-fm (6 handlers)
-2025/11/19 14:33:39 Server running on port 8080
+2025/12/06 14:36:06 Server running on port 8080
 [GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
 Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.
 [GIN-debug] Listening and serving HTTP on :8080
-[2025-11-19T14:36:48+07:00] PUT /api/me/password 400 39.012875ms
-[GIN] 2025/11/19 - 14:36:48 | 400 |   39.487625ms |             ::1 | PUT      "/api/me/password"
-[2025-11-19T14:37:06+07:00] PUT /api/me/password 200 147.8125ms
-[GIN] 2025/11/19 - 14:37:06 | 200 |  148.027542ms |             ::1 | PUT      "/api/me/password"
-[2025-11-19T14:37:16+07:00] POST /api/forgot-password 400 6.559458ms
-[GIN] 2025/11/19 - 14:37:16 | 400 |       6.762ms |             ::1 | POST     "/api/forgot-password"
-[2025-11-19T14:37:47+07:00] POST /api/forgot-password 200 77.76975ms
-[GIN] 2025/11/19 - 14:37:47 | 200 |   78.108667ms |             ::1 | POST     "/api/forgot-password"
-[2025-11-19T14:37:56+07:00] POST /api/login 200 62.773042ms
-[GIN] 2025/11/19 - 14:37:56 | 200 |   65.614708ms |             ::1 | POST     "/api/login"
+[2025-12-06T14:38:35+07:00] GET /api/simpanan/wallets/all 401 235.042µs
+[GIN] 2025/12/06 - 14:38:35 | 401 |       268.5µs |             ::1 | GET      "/api/simpanan/wallets/all"
+[2025-12-06T14:38:53+07:00] POST /api/login 401 66.277042ms
+[GIN] 2025/12/06 - 14:38:53 | 401 |   66.321708ms |             ::1 | POST     "/api/login"
+[2025-12-06T14:38:54+07:00] GET /api/simpanan/wallets/all 401 22.334µs
+[GIN] 2025/12/06 - 14:38:54 | 401 |      54.625µs |             ::1 | GET      "/api/simpanan/wallets/all"
+[2025-12-06T14:39:09+07:00] POST /api/login 200 62.266292ms
+[GIN] 2025/12/06 - 14:39:09 | 200 |   62.304208ms |             ::1 | POST     "/api/login"
+[2025-12-06T14:39:19+07:00] GET /api/simpanan/wallets/all 403 4.414459ms
+[GIN] 2025/12/06 - 14:39:19 | 403 |    4.445167ms |             ::1 | GET      "/api/simpanan/wallets/all"
+[2025-12-06T14:39:35+07:00] POST /api/login 200 61.374666ms
+[GIN] 2025/12/06 - 14:39:35 | 200 |   61.410667ms |             ::1 | POST     "/api/login"
+[2025-12-06T14:39:43+07:00] GET /api/simpanan/wallets/all 200 10.140667ms
+[GIN] 2025/12/06 - 14:39:43 | 200 |   10.186667ms |             ::1 | GET      "/api/simpanan/wallets/all"
+[2025-12-06T14:40:09+07:00] GET /api/simpanan/wallets/all 200 6.355209ms
+[GIN] 2025/12/06 - 14:40:09 | 200 |     6.39275ms |             ::1 | GET      "/api/simpanan/wallets/all"

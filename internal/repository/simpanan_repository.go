@@ -55,7 +55,7 @@ func (r *SimpananRepository) GetWalletByUserAndType(userID uint, walletType stri
 // GetAllWallets returns all wallets; if userID > 0 it filters by user.
 func (r *SimpananRepository) GetAllWallets(userID uint) ([]model.Simpanan, error) {
 	var list []model.Simpanan
-	q := r.db
+	q := r.db.Preload("User.Role")
 	if userID > 0 {
 		q = q.Where("user_id = ?", userID)
 	}
