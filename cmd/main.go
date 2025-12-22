@@ -83,6 +83,11 @@ func main() {
 	angsuranSvc := service.NewAngsuranService(angsuranRepo, pinjamanRepo, userRepo, transactionSvc)
 	angsuranHdl := handler.NewAngsuranHandler(angsuranSvc)
 
+	// Bank Account dependencies
+	bankAccountRepo := repository.NewBankAccountRepository(db)
+	bankAccountSvc := service.NewBankAccountService(bankAccountRepo)
+	bankAccountHdl := handler.NewBankAccountHandler(bankAccountSvc)
+
 	r := gin.Default()
 
 	// CORS middleware
@@ -126,6 +131,14 @@ func main() {
 		protected.PUT("/simpanan/:id/adjust", simpananHdl.AdjustWallet)
 		protected.GET("/simpanan/transactions/pending", simpananHdl.GetPendingTransactions)
 		protected.PUT("/simpanan/transactions/:id/verify", simpananHdl.VerifyTransaction)
+
+		// Bank Account Management
+		protected.POST("/bank-accounts", bankAccountHdl.Create)
+		protected.GET("/bank-accounts", bankAccountHdl.List)
+		protected.GET("/bank-accounts/active", bankAccountHdl.GetActive)
+		protected.GET("/bank-accounts/:id", bankAccountHdl.GetByID)
+		protected.PUT("/bank-accounts/:id", bankAccountHdl.Update)
+		protected.DELETE("/bank-accounts/:id", bankAccountHdl.Delete)
 
 		// Bunga Options Management
 		protected.POST("/bunga-options", bungaOptionHdl.Create)

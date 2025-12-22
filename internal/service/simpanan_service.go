@@ -52,7 +52,7 @@ func (s *SimpananService) GetAllWallets(requestorRole string) ([]model.Simpanan,
 }
 
 // TopupWallet creates a pending top-up transaction
-func (s *SimpananService) TopupWallet(userID uint, walletType string, amount float64, description string) error {
+func (s *SimpananService) TopupWallet(userID uint, walletType string, amount float64, description string, imageBuktiTransfer string, bankAccountID *uint) error {
 	if amount <= 0 {
 		return errors.New("amount must be positive")
 	}
@@ -71,11 +71,13 @@ func (s *SimpananService) TopupWallet(userID uint, walletType string, amount flo
 
 	// Create pending transaction
 	transaction := &model.SimpananTransaction{
-		SimpananID:  wallet.ID,
-		Type:        "topup",
-		Amount:      amount,
-		Description: description,
-		Status:      "pending",
+		SimpananID:         wallet.ID,
+		Type:               "topup",
+		Amount:             amount,
+		Description:        description,
+		Status:             "pending",
+		ImageBuktiTransfer: imageBuktiTransfer,
+		BankAccountID:      bankAccountID,
 	}
 
 	err = s.repo.CreateTransaction(transaction)

@@ -73,9 +73,11 @@ func (h *SimpananHandler) TopupWallet(c *gin.Context) {
 	userID := c.GetUint("userID")
 
 	var input struct {
-		Type        string  `json:"type" binding:"required,oneof=pokok wajib sukarela"`
-		Amount      float64 `json:"amount" binding:"required,gt=0"`
-		Description string  `json:"description"`
+		Type               string  `json:"type" binding:"required,oneof=pokok wajib sukarela"`
+		Amount             float64 `json:"amount" binding:"required,gt=0"`
+		Description        string  `json:"description"`
+		ImageBuktiTransfer string  `json:"image_bukti_transfer" binding:"required"`
+		BankAccountID      *uint   `json:"bank_account_id"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -83,7 +85,7 @@ func (h *SimpananHandler) TopupWallet(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.TopupWallet(userID, input.Type, input.Amount, input.Description); err != nil {
+	if err := h.service.TopupWallet(userID, input.Type, input.Amount, input.Description, input.ImageBuktiTransfer, input.BankAccountID); err != nil {
 		c.JSON(http.StatusInternalServerError, utils.ResponseError(err.Error()))
 		return
 	}

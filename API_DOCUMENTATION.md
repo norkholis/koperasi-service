@@ -338,6 +338,171 @@ Authorization: Bearer {token}
 
 ---
 
+## Bank Account Management
+
+Bank accounts are destination accounts where users transfer money for wallet top-ups and loan payments. Admins can create, update, and manage these accounts. Users can view active accounts to know where to send their payments.
+
+### Key Features:
+- **Admin Management**: Only admins can create, update, and delete bank accounts
+- **Active/Inactive Status**: Admins can activate/deactivate accounts
+- **User Visibility**: Users see only active accounts for payment destinations
+- **Multiple Accounts**: Support for multiple bank accounts for different purposes
+
+---
+
+### Create Bank Account (Admin Only)
+```http
+POST /api/bank-accounts
+Authorization: Bearer {admin_token}
+Content-Type: application/json
+
+{
+  "bank_name": "Bank BCA",
+  "account_number": "1234567890",
+  "account_name": "Koperasi Savings Account",
+  "description": "For wallet top-ups",
+  "is_active": true
+}
+```
+
+**Required Fields:**
+- `bank_name`: Name of the bank
+- `account_number`: Bank account number
+- `account_name`: Name on the account
+
+**Optional Fields:**
+- `description`: Purpose or notes (e.g., "For loan payments", "For wallet top-ups")
+- `is_active`: Active status (default: true)
+
+**Response:**
+```json
+{
+  "message": "Bank account created successfully",
+  "data": {
+    "ID": 1,
+    "bank_name": "Bank BCA",
+    "account_number": "1234567890",
+    "account_name": "Koperasi Savings Account",
+    "description": "For wallet top-ups",
+    "is_active": true
+  }
+}
+```
+
+### List Bank Accounts
+```http
+GET /api/bank-accounts
+Authorization: Bearer {token}
+```
+
+**Access Control:**
+- **Admin/Super Admin**: Returns all bank accounts (active and inactive)
+- **Member**: Returns only active bank accounts
+
+**Response:**
+```json
+{
+  "message": "Bank accounts retrieved successfully",
+  "data": [
+    {
+      "ID": 1,
+      "bank_name": "Bank BCA",
+      "account_number": "1234567890",
+      "account_name": "Koperasi Savings Account",
+      "description": "For wallet top-ups",
+      "is_active": true,
+      "CreatedAt": "2025-12-19T10:00:00Z",
+      "UpdatedAt": "2025-12-19T10:00:00Z"
+    }
+  ]
+}
+```
+
+### Get Active Bank Accounts
+```http
+GET /api/bank-accounts/active
+Authorization: Bearer {token}
+```
+
+**Description:** Returns only active bank accounts. This endpoint is useful for users to see where they should transfer money.
+
+**Response:**
+```json
+{
+  "message": "Active bank accounts retrieved successfully",
+  "data": [
+    {
+      "ID": 1,
+      "bank_name": "Bank BCA",
+      "account_number": "1234567890",
+      "account_name": "Koperasi Savings Account",
+      "description": "For wallet top-ups",
+      "is_active": true
+    }
+  ]
+}
+```
+
+### Get Bank Account by ID
+```http
+GET /api/bank-accounts/{id}
+Authorization: Bearer {token}
+```
+
+**Response:**
+```json
+{
+  "message": "Bank account retrieved successfully",
+  "data": {
+    "ID": 1,
+    "bank_name": "Bank BCA",
+    "account_number": "1234567890",
+    "account_name": "Koperasi Savings Account",
+    "description": "For wallet top-ups",
+    "is_active": true
+  }
+}
+```
+
+### Update Bank Account (Admin Only)
+```http
+PUT /api/bank-accounts/{id}
+Authorization: Bearer {admin_token}
+Content-Type: application/json
+
+{
+  "bank_name": "Bank Mandiri",
+  "account_number": "9876543210",
+  "account_name": "Updated Account Name",
+  "description": "Updated description",
+  "is_active": false
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Bank account updated successfully"
+}
+```
+
+### Delete Bank Account (Admin Only)
+```http
+DELETE /api/bank-accounts/{id}
+Authorization: Bearer {admin_token}
+```
+
+**Response:**
+```json
+{
+  "message": "Bank account deleted successfully"
+}
+```
+
+**Note:** Consider deactivating accounts instead of deleting if there are existing transactions referencing them.
+
+---
+
 ## Simpanan (Wallet) Management
 
 The new simpanan system works as a **wallet** with 3 automatic wallet types for each user:
@@ -426,11 +591,22 @@ Content-Type: application/json
 {
   "type": "wajib",
   "amount": 200000,
-  "description": "Monthly mandatory savings"
+  "description": "Monthly mandatory savings",
+  "image_bukti_transfer": "https://example.com/transfer-proof.jpg",
+  "bank_account_id": 1
 }
 ```
 
 **Valid Types:** `pokok`, `wajib`, `sukarela`
+
+**Required Fields:**
+- `type`: Wallet type (pokok/wajib/sukarela)
+- `amount`: Top-up amount (must be positive)
+- `image_bukti_transfer`: URL or path to transfer proof image
+
+**Optional Fields:**
+- `description`: Additional notes
+- `bank_account_id`: ID of bank account where money was transferred to
 
 **Response:**
 ```json
@@ -439,7 +615,7 @@ Content-Type: application/json
 }
 ```
 
-**Note:** Creates a pending transaction that requires admin verification.
+**Note:** Creates a pending transaction that requires admin verification. Users should first get active bank accounts from `/api/bank-accounts/active` to know where to transfer.
 
 ### Get Wallet Detail
 ```http
@@ -1833,6 +2009,8 @@ The system automatically creates database tables and seeds default roles:
   "amount": 200000,
   "description": "Monthly mandatory savings",
   "status": "verified",
+  "image_bukti_transfer": "https://example.com/transfer-proof.jpg",
+  "bank_account_id": 1,
   "verified_by_id": 2,
   "verified_at": "2024-01-15T11:00:00Z",
   "created_at": "2024-01-15T10:30:00Z",
@@ -1847,9 +2025,35 @@ The system automatically creates database tables and seeds default roles:
 - `amount`: Transaction amount (positive/negative)
 - `description`: Transaction description
 - `status`: Transaction status (`pending`, `verified`, `rejected`)
+- `image_bukti_transfer`: URL/path to transfer proof image (required for topups)
+- `bank_account_id`: Reference to bank account used for transfer
 - `verified_by_id`: Admin who verified the transaction
 - `verified_at`: Verification timestamp
 - `created_at`: Transaction creation timestamp
+- `updated_at`: Last modification timestamp
+
+### Bank Account Model
+```json
+{
+  "id": 1,
+  "bank_name": "Bank BCA",
+  "account_number": "1234567890",
+  "account_name": "Koperasi Savings Account",
+  "description": "For wallet top-ups",
+  "is_active": true,
+  "created_at": "2024-01-15T10:00:00Z",
+  "updated_at": "2024-01-15T10:00:00Z"
+}
+```
+
+**Fields:**
+- `id`: Unique bank account identifier
+- `bank_name`: Name of the bank (e.g., "Bank BCA", "Bank Mandiri")
+- `account_number`: Bank account number
+- `account_name`: Name registered on the account
+- `description`: Purpose or notes about the account
+- `is_active`: Whether the account is currently active for receiving payments
+- `created_at`: Account creation timestamp
 - `updated_at`: Last modification timestamp
 
 **Transaction Types:**
