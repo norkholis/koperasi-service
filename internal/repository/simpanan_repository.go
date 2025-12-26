@@ -2,6 +2,7 @@ package repository
 
 import (
 	"koperasi-service/internal/model"
+	"strings"
 
 	"gorm.io/gorm"
 )
@@ -21,6 +22,18 @@ func (r *SimpananRepository) InitializeUserWallets(userID uint) error {
 	walletTypes := []string{"pokok", "wajib", "sukarela"}
 
 	for _, walletType := range walletTypes {
+		// Check if wallet already exists
+		var existing model.Simpanan
+		err := r.db.Where("user_id = ? AND type = ?", userID, walletType).First(&existing).Error
+		if err == nil {
+			// Wallet already exists, skip
+			continue
+		}
+		// Only proceed if error is "record not found"
+		if err != gorm.ErrRecordNotFound {
+			return err
+		}
+
 		wallet := &model.Simpanan{
 			UserID:      userID,
 			Type:        walletType,
@@ -28,7 +41,10 @@ func (r *SimpananRepository) InitializeUserWallets(userID uint) error {
 			Description: "Wallet " + walletType,
 		}
 		if err := r.db.Create(wallet).Error; err != nil {
-			return err
+			// Ignore duplicate key errors (in case of race conditions)
+			if !strings.Contains(err.Error(), "duplicate key") && !strings.Contains(err.Error(), "UNIQUE constraint") {
+				return err
+			}
 		}
 	}
 	return nil
@@ -87,7 +103,10 @@ func (r *SimpananRepository) CreateTransaction(tx *model.SimpananTransaction) er
 // GetTransactionsByWallet returns all transactions for a specific wallet
 func (r *SimpananRepository) GetTransactionsByWallet(simpananID uint) ([]model.SimpananTransaction, error) {
 	var transactions []model.SimpananTransaction
-	if err := r.db.Where("simpanan_id = ?", simpananID).Preload("VerifiedBy").Find(&transactions).Error; err != nil {
+	if err := r.db.Where("simpanan_id = ?", simpananID).
+		Preload("VerifiedBy").
+		Preload("BankAccount").
+		Find(&transactions).Error; err != nil {
 		return nil, err
 	}
 	return transactions, nil
@@ -96,7 +115,7 @@ func (r *SimpananRepository) GetTransactionsByWallet(simpananID uint) ([]model.S
 // GetTransactionByID returns a transaction by ID
 func (r *SimpananRepository) GetTransactionByID(id uint) (*model.SimpananTransaction, error) {
 	var tx model.SimpananTransaction
-	if err := r.db.Preload("Simpanan").Preload("VerifiedBy").First(&tx, id).Error; err != nil {
+	if err := r.db.Preload("Simpanan").Preload("VerifiedBy").Preload("BankAccount").First(&tx, id).Error; err != nil {
 		return nil, err
 	}
 	return &tx, nil
@@ -110,7 +129,10 @@ func (r *SimpananRepository) UpdateTransaction(tx *model.SimpananTransaction) er
 // GetPendingTransactions returns all pending transactions (for admin verification)
 func (r *SimpananRepository) GetPendingTransactions() ([]model.SimpananTransaction, error) {
 	var transactions []model.SimpananTransaction
-	if err := r.db.Where("status = ?", "pending").Preload("Simpanan").Find(&transactions).Error; err != nil {
+	if err := r.db.Where("status = ?", "pending").
+		Preload("Simpanan.User").
+		Preload("BankAccount").
+		Find(&transactions).Error; err != nil {
 		return nil, err
 	}
 	return transactions, nil

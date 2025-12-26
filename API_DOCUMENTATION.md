@@ -1157,6 +1157,9 @@ GET /api/angsuran?pinjaman_id=1
       "TotalBayar": 450000,
       "UserID": 1,
       "Status": "proses",
+      "ImageBuktiTransfer": "/uploads/angsuran/bukti_transfer_123.jpg",
+      "NoRekening": "9876543210",
+      "BankName": "Bank Mandiri",
       "Pinjaman": { /* loan details */ },
       "User": { /* user details */ }
     }
@@ -1168,6 +1171,29 @@ GET /api/angsuran?pinjaman_id=1
 ```http
 GET /api/angsuran/{id}
 Authorization: Bearer {token}
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "ID": 1,
+    "PinjamanID": 1,
+    "AngsuranKe": 1,
+    "TanggalBayar": "2024-01-15T10:00:00Z",
+    "Pokok": 400000,
+    "Bunga": 50000,
+    "Denda": 0,
+    "TotalBayar": 450000,
+    "UserID": 1,
+    "Status": "proses",
+    "ImageBuktiTransfer": "/uploads/angsuran/bukti_transfer_123.jpg",
+    "NoRekening": "9876543210",
+    "BankName": "Bank Mandiri",
+    "Pinjaman": { /* loan details */ },
+    "User": { /* user details */ }
+  }
+}
 ```
 
 ### Update Angsuran

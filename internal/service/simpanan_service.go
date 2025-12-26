@@ -66,7 +66,15 @@ func (s *SimpananService) TopupWallet(userID uint, walletType string, amount flo
 	// Get or create wallet
 	wallet, err := s.repo.GetWalletByUserAndType(userID, walletType)
 	if err != nil {
-		return errors.New("wallet not found")
+		// If wallet doesn't exist, initialize all wallets for this user
+		if err := s.repo.InitializeUserWallets(userID); err != nil {
+			return errors.New("failed to initialize wallets")
+		}
+		// Try to get the wallet again
+		wallet, err = s.repo.GetWalletByUserAndType(userID, walletType)
+		if err != nil {
+			return errors.New("wallet not found")
+		}
 	}
 
 	// Create pending transaction

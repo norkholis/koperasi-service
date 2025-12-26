@@ -37,8 +37,6 @@ func AuthMiddleware(cfg *config.Config, userRepo *repository.UserRepository) gin
 
 		userID := uint(userIDFloat)
 		c.Set("user_id", userID)
-
-		// load user role
 		if user, err := userRepo.FindByIDWithRole(userID); err == nil {
 			c.Set("role", user.Role.Name)
 		}

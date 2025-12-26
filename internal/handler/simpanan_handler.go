@@ -20,7 +20,7 @@ func NewSimpananHandler(svc *service.SimpananService) *SimpananHandler {
 
 // GetWallets returns user wallets (all 3 types)
 func (h *SimpananHandler) GetWallets(c *gin.Context) {
-	requestorID := c.GetUint("userID")
+	requestorID := c.GetUint("user_id")
 	requestorRole := c.GetString("role")
 
 	// Get user ID from query param or use requestor's ID
@@ -70,7 +70,7 @@ func (h *SimpananHandler) GetAllWallets(c *gin.Context) {
 
 // TopupWallet creates a pending top-up transaction
 func (h *SimpananHandler) TopupWallet(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("user_id")
 
 	var input struct {
 		Type               string  `json:"type" binding:"required,oneof=pokok wajib sukarela"`
@@ -95,7 +95,7 @@ func (h *SimpananHandler) TopupWallet(c *gin.Context) {
 
 // GetWalletDetail returns detailed wallet information
 func (h *SimpananHandler) GetWalletDetail(c *gin.Context) {
-	requestorID := c.GetUint("userID")
+	requestorID := c.GetUint("user_id")
 	requestorRole := c.GetString("role")
 
 	idParam := c.Param("id")
@@ -120,7 +120,7 @@ func (h *SimpananHandler) GetWalletDetail(c *gin.Context) {
 
 // GetWalletTransactions returns transaction history for a wallet
 func (h *SimpananHandler) GetWalletTransactions(c *gin.Context) {
-	requestorID := c.GetUint("userID")
+	requestorID := c.GetUint("user_id")
 	requestorRole := c.GetString("role")
 
 	idParam := c.Param("id")
@@ -145,7 +145,7 @@ func (h *SimpananHandler) GetWalletTransactions(c *gin.Context) {
 
 // VerifyTransaction verifies a pending transaction (admin only)
 func (h *SimpananHandler) VerifyTransaction(c *gin.Context) {
-	adminID := c.GetUint("userID")
+	adminID := c.GetUint("user_id")
 	adminRole := c.GetString("role")
 
 	idParam := c.Param("id")
@@ -182,7 +182,7 @@ func (h *SimpananHandler) VerifyTransaction(c *gin.Context) {
 
 // AdjustWallet allows admin to directly adjust wallet balance
 func (h *SimpananHandler) AdjustWallet(c *gin.Context) {
-	adminID := c.GetUint("userID")
+	adminID := c.GetUint("user_id")
 	adminRole := c.GetString("role")
 
 	idParam := c.Param("id")
