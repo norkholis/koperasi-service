@@ -246,7 +246,7 @@ func (h *PinjamanHandler) Reject(c *gin.Context) {
 	}
 
 	var input struct {
-		Reason string `json:"reason" binding:"required"` // Required reason for rejection
+		Reason string `json:"alasan" binding:"required"` // Required reason for rejection
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
