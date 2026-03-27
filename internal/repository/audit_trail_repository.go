@@ -302,7 +302,6 @@ func (r *transactionHistoryRepository) GetUserTransactions(userID uint, startDat
 
 func (r *transactionHistoryRepository) GetFinancialSummary(startDate, endDate time.Time) (map[string]interface{}, error) {
 	var summary struct {
-		TotalSimpanan     float64 `gorm:"column:total_simpanan"`
 		TotalPinjaman     float64 `gorm:"column:total_pinjaman"`
 		TotalAngsuran     float64 `gorm:"column:total_angsuran"`
 		TotalSHU          float64 `gorm:"column:total_shu"`
@@ -311,7 +310,6 @@ func (r *transactionHistoryRepository) GetFinancialSummary(startDate, endDate ti
 
 	err := r.db.Model(&model.TransactionHistory{}).
 		Select(`
-			COALESCE(SUM(CASE WHEN transaction_type = 'SIMPANAN' THEN amount END), 0) as total_simpanan,
 			COALESCE(SUM(CASE WHEN transaction_type = 'PINJAMAN' THEN amount END), 0) as total_pinjaman,
 			COALESCE(SUM(CASE WHEN transaction_type = 'ANGSURAN' THEN amount END), 0) as total_angsuran,
 			COALESCE(SUM(CASE WHEN transaction_type = 'SHU' THEN amount END), 0) as total_shu,
@@ -324,8 +322,18 @@ func (r *transactionHistoryRepository) GetFinancialSummary(startDate, endDate ti
 		return nil, err
 	}
 
+	// Get total_simpanan from actual wallet balances (simpanans table), not from transactions
+	var totalSimpanan float64
+	err = r.db.Model(&model.Simpanan{}).
+		Select("COALESCE(SUM(balance), 0)").
+		Scan(&totalSimpanan).Error
+
+	if err != nil {
+		return nil, err
+	}
+
 	result := map[string]interface{}{
-		"total_simpanan":     summary.TotalSimpanan,
+		"total_simpanan":     totalSimpanan,
 		"total_pinjaman":     summary.TotalPinjaman,
 		"total_angsuran":     summary.TotalAngsuran,
 		"total_shu":          summary.TotalSHU,

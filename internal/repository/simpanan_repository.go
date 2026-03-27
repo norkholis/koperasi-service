@@ -103,10 +103,7 @@ func (r *SimpananRepository) CreateTransaction(tx *model.SimpananTransaction) er
 // GetTransactionsByWallet returns all transactions for a specific wallet
 func (r *SimpananRepository) GetTransactionsByWallet(simpananID uint) ([]model.SimpananTransaction, error) {
 	var transactions []model.SimpananTransaction
-	if err := r.db.Where("simpanan_id = ?", simpananID).
-		Preload("VerifiedBy").
-		Preload("BankAccount").
-		Find(&transactions).Error; err != nil {
+	if err := r.db.Where("simpanan_id = ?", simpananID).Preload("VerifiedBy").Find(&transactions).Error; err != nil {
 		return nil, err
 	}
 	return transactions, nil
@@ -115,7 +112,7 @@ func (r *SimpananRepository) GetTransactionsByWallet(simpananID uint) ([]model.S
 // GetTransactionByID returns a transaction by ID
 func (r *SimpananRepository) GetTransactionByID(id uint) (*model.SimpananTransaction, error) {
 	var tx model.SimpananTransaction
-	if err := r.db.Preload("Simpanan").Preload("VerifiedBy").Preload("BankAccount").First(&tx, id).Error; err != nil {
+	if err := r.db.Preload("Simpanan").Preload("VerifiedBy").First(&tx, id).Error; err != nil {
 		return nil, err
 	}
 	return &tx, nil
@@ -129,10 +126,7 @@ func (r *SimpananRepository) UpdateTransaction(tx *model.SimpananTransaction) er
 // GetPendingTransactions returns all pending transactions (for admin verification)
 func (r *SimpananRepository) GetPendingTransactions() ([]model.SimpananTransaction, error) {
 	var transactions []model.SimpananTransaction
-	if err := r.db.Where("status = ?", "pending").
-		Preload("Simpanan.User").
-		Preload("BankAccount").
-		Find(&transactions).Error; err != nil {
+	if err := r.db.Where("status = ?", "pending").Preload("Simpanan").Find(&transactions).Error; err != nil {
 		return nil, err
 	}
 	return transactions, nil

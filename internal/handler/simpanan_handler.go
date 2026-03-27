@@ -156,7 +156,7 @@ func (h *SimpananHandler) VerifyTransaction(c *gin.Context) {
 	}
 
 	var input struct {
-		Approve *bool `json:"approve" binding:"required"`
+		Approve bool `json:"approve" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -164,7 +164,7 @@ func (h *SimpananHandler) VerifyTransaction(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.VerifyTransaction(uint(id64), adminID, adminRole, *input.Approve); err != nil {
+	if err := h.service.VerifyTransaction(uint(id64), adminID, adminRole, input.Approve); err != nil {
 		status := http.StatusInternalServerError
 		if err.Error() == "forbidden" {
 			status = http.StatusForbidden
@@ -174,7 +174,7 @@ func (h *SimpananHandler) VerifyTransaction(c *gin.Context) {
 	}
 
 	message := "Transaction approved"
-	if !*input.Approve {
+	if !input.Approve {
 		message = "Transaction rejected"
 	}
 	c.JSON(http.StatusOK, utils.ResponseSuccess(message))
